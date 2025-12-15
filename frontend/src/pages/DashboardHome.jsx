@@ -20,21 +20,31 @@ import {
   HardDrive,
   Calendar,
 } from "lucide-react";
+// Asegúrate de que esta ruta sea correcta
 import UploadForm from "../components/UploadForm";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const userName = localStorage.getItem("name") || "Usuario"; // Nombre del usuario logueado
+
+  // 1. Obtener datos del usuario logueado de forma segura
+  const userStr = localStorage.getItem("user");
+  // Por seguridad, si no hay usuario, el rol por defecto es 'guest' para no mostrar botones admin
+  const user = userStr
+    ? JSON.parse(userStr)
+    : { name: "Usuario", id: null, role: "guest" };
+
+  const userName = user.name || "Doctor";
 
   const fetchStats = async () => {
     try {
+      // Enviamos user_id y role para que el backend sepa qué filtrar
       const res = await axios.get(
-        "http://localhost/backend/dashboard_stats.php"
+        `http://localhost/backend/dashboard_stats.php?user_id=${user.id}&role=${user.role}`
       );
       setStats(res.data);
     } catch (e) {
-      console.error(e);
+      console.error("Error cargando dashboard:", e);
     }
   };
 
@@ -42,10 +52,16 @@ export default function DashboardHome() {
     fetchStats();
   }, []);
 
-  if (!stats)
-    return <div className="p-10 text-gray-400">Cargando datos...</div>;
+  // Estado de Carga (Loading)
+  if (!stats) {
+    return (
+      <div className="flex items-center justify-center h-screen text-blue-600 font-medium animate-pulse">
+        Cargando Panel de Control...
+      </div>
+    );
+  }
 
-  // Datos simulados para la gráfica de curva (puedes conectarlo al backend luego)
+  // Datos simulados para la gráfica de curva
   const activityData = [
     { name: "Lun", estudios: 4 },
     { name: "Mar", estudios: 7 },
@@ -55,12 +71,12 @@ export default function DashboardHome() {
     { name: "Sab", estudios: 3 },
   ];
 
-  const COLORS = ["#4318FF", "#6AD2FF", "#EFF4FB", "#FF8042"]; // Azules modernos
+  const COLORS = ["#4318FF", "#6AD2FF", "#EFF4FB", "#FF8042"];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       {/* --- HEADER SUPERIOR --- */}
-      <header className="flex justify-between items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl sticky top-0 z-10">
+      <header className="flex justify-between items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl sticky top-0 z-10 border border-white/20">
         <div>
           <p className="text-sm text-gray-500">Bienvenido de nuevo,</p>
           <h2 className="text-2xl font-bold text-slate-800">{userName}</h2>
@@ -75,24 +91,26 @@ export default function DashboardHome() {
               className="bg-transparent outline-none text-sm w-32 md:w-64"
             />
           </div>
-          <button className="text-gray-400 hover:text-blue-600 relative">
+          <button className="text-gray-400 hover:text-blue-600 relative p-1">
             <Bell size={20} />
             <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>
         </div>
       </header>
 
-      {/* --- BOTÓN FLOTANTE O DE ACCIÓN --- */}
+      {/* --- BOTÓN FLOTANTE (SOLO ADMIN) --- */}
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 font-medium transition-transform transform hover:-translate-y-1"
-        >
-          <UploadCloud size={20} /> Subir Nuevo Estudio
-        </button>
+        {user.role === "admin" && (
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 font-medium transition-all transform hover:-translate-y-1"
+          >
+            <UploadCloud size={20} /> Subir Nuevo Estudio
+          </button>
+        )}
       </div>
 
       {/* Modal de Subida */}
@@ -101,14 +119,17 @@ export default function DashboardHome() {
           <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full relative animate-fade-in-up">
             <button
               onClick={() => setShowUploadModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 font-bold text-xl"
+              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 font-bold text-xl transition-colors"
             >
               ×
             </button>
+            <h3 className="text-xl font-bold mb-4 text-gray-800">
+              Subir Estudio
+            </h3>
             <UploadForm
               onSuccess={() => {
                 setShowUploadModal(false);
-                fetchStats();
+                fetchStats(); // Recargar datos tras subir
               }}
             />
           </div>
@@ -143,14 +164,14 @@ export default function DashboardHome() {
           value={stats.counts.month_studies}
           icon={<Calendar size={24} className="text-green-600" />}
           bgIcon="bg-green-100"
-          trend="+2 hoy"
+          trend="Actividad reciente"
         />
       </div>
 
       {/* --- GRÁFICAS --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfica Izquierda: Curva Suave (Simulando Revenue Growth) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm">
+        {/* Gráfica Izquierda */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-lg text-slate-800">
               Actividad Semanal
@@ -207,7 +228,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Gráfica Derecha: Donut Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="font-bold text-lg text-slate-800 mb-2">
             Tipos de Estudios
           </h3>
@@ -233,7 +254,7 @@ export default function DashboardHome() {
                 <RechartsTooltip />
               </PieChart>
             </ResponsiveContainer>
-            {/* Texto central del Donut */}
+
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xs text-gray-400">Total</span>
               <span className="text-2xl font-bold text-slate-800">
@@ -242,8 +263,7 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          {/* Leyenda Personalizada */}
-          <div className="space-y-2 mt-4">
+          <div className="space-y-2 mt-4 max-h-32 overflow-y-auto">
             {stats.by_type.map((type, i) => (
               <div
                 key={i}
@@ -255,7 +275,7 @@ export default function DashboardHome() {
                     style={{ backgroundColor: COLORS[i % COLORS.length] }}
                   ></span>
                   <span className="text-gray-500 capitalize">
-                    {type.file_type}
+                    {type.file_type || "Desconocido"}
                   </span>
                 </div>
                 <span className="font-bold text-slate-700">{type.count}</span>
@@ -266,7 +286,7 @@ export default function DashboardHome() {
       </div>
 
       {/* --- LISTA INFERIOR: ÚLTIMOS PACIENTES --- */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-lg text-slate-800">
             Pacientes Recientes
@@ -283,27 +303,35 @@ export default function DashboardHome() {
                 <th className="pb-4 font-medium pl-2">NOMBRE</th>
                 <th className="pb-4 font-medium">DNI</th>
                 <th className="pb-4 font-medium">FECHA ÚLTIMO ESTUDIO</th>
-                <th className="pb-4 font-medium">ESTADO</th>
+                <th className="pb-4 font-medium">ACCIONES</th>
               </tr>
             </thead>
             <tbody className="text-sm">
-              {stats.recent_patients.map((p, i) => (
-                <tr
-                  key={i}
-                  className="group hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-4 pl-2 font-bold text-slate-700">
-                    {p.name}
-                  </td>
-                  <td className="py-4 text-gray-500">{p.dni}</td>
-                  <td className="py-4 text-gray-500">{p.last_date}</td>
-                  <td className="py-4">
-                    <button className="text-blue-600 font-medium hover:text-blue-800">
-                      Ver Detalles
-                    </button>
+              {stats.recent_patients.length > 0 ? (
+                stats.recent_patients.map((p, i) => (
+                  <tr
+                    key={i}
+                    className="group hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="py-4 pl-2 font-bold text-slate-700">
+                      {p.name}
+                    </td>
+                    <td className="py-4 text-gray-500">{p.dni}</td>
+                    <td className="py-4 text-gray-500">{p.last_date}</td>
+                    <td className="py-4">
+                      <button className="text-blue-600 font-medium hover:text-blue-800">
+                        Ver Historial
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="text-center py-8 text-gray-400">
+                    No hay pacientes recientes
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -312,10 +340,10 @@ export default function DashboardHome() {
   );
 }
 
-// Componente de Tarjeta Minimalista
+// Componente de Tarjeta
 function StatCard({ title, value, icon, bgIcon, trend }) {
   return (
-    <div className="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-default">
+    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-default">
       <div
         className={`w-14 h-14 rounded-full flex items-center justify-center ${bgIcon}`}
       >

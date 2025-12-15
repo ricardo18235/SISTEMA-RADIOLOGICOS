@@ -1,87 +1,117 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { User, Lock, Activity } from "lucide-react";
 
-export default function Login() {
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
+const Login = () => {
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError("");
+
     try {
-      const res = await axios.post("http://localhost/backend/login.php", {
-        username: user,
-        password: pass,
+      const response = await axios.post("http://localhost/backend/login.php", {
+        username: formData.username,
+        password: formData.password,
       });
 
-      if (res.data.token) {
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("role", res.data.role);
-        navigate("/dashboard");
-      } else {
-        setError("Respuesta inesperada del servidor");
-      }
+      // --- AQUÍ ESTABA EL PROBLEMA, AHORA LO CORREGIMOS ---
+
+      const { token, user } = response.data;
+
+      // 1. Guardar Token
+      localStorage.setItem("token", token);
+
+      // 2. Guardar el objeto Usuario COMPLETO (Esto es lo que busca el Dashboard)
+      // Convertimos el objeto a texto (JSON.stringify) porque LocalStorage solo guarda texto
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // 3. Redirigir
+      navigate("/dashboard");
+      window.location.reload(); // Recarga forzada para asegurar que el Dashboard lea los datos nuevos
     } catch (err) {
       console.error(err);
-      setError("Usuario o contraseña incorrectos");
+      setError("Credenciales incorrectas o error de conexión");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl animate-fade-in-up">
+        {/* Logo / Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-900">
-            Centro Radiológico
-          </h1>
-          <p className="text-gray-500 mt-2">Acceso al portal seguro</p>
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30">
+            <Activity className="text-white w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800">Bienvenido</h1>
+          <p className="text-gray-500 text-sm">
+            Sistema de Gestión Radiológica
+          </p>
         </div>
 
         {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 text-sm">
+          <div className="mb-4 p-3 bg-red-50 text-red-500 text-sm rounded-lg border border-red-100 text-center font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Usuario / Email / DNI
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
-              placeholder="Ingresa tu usuario"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                name="username"
+                placeholder="Email o DNI"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+              <input
+                type="password"
+                name="password"
+                placeholder="Contraseña"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                onChange={handleChange}
+                required
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
-              placeholder="••••••"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-            />
-          </div>
-
-          <button className="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md">
-            Iniciar Sesión
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-600/30 transition-all transform active:scale-95 flex justify-center items-center"
+          >
+            {loading ? (
+              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            ) : (
+              "Iniciar Sesión"
+            )}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          Sistema de Gestión de Imágenes Médicas v1.0
+        <p className="mt-8 text-center text-xs text-gray-400">
+          ¿Problemas de acceso? Contacta al administrador.
         </p>
       </div>
     </div>
   );
-}
+};
+
+export default Login;
