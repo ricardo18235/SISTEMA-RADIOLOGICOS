@@ -20,25 +20,28 @@ import {
   HardDrive,
   Calendar,
 } from "lucide-react";
-// Asegúrate de que esta ruta sea correcta
 import UploadForm from "../components/UploadForm";
+// 1. IMPORTAMOS EL NUEVO MODAL
+import PatientHistoryModal from "../components/PatientHistoryModal";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState(null);
+
+  // Estado para el modal de subir archivo
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // 1. Obtener datos del usuario logueado de forma segura
+  // 2. NUEVO ESTADO PARA EL MODAL DE HISTORIAL
+  const [selectedPatientDni, setSelectedPatientDni] = useState(null);
+
+  // Obtener datos del usuario
   const userStr = localStorage.getItem("user");
-  // Por seguridad, si no hay usuario, el rol por defecto es 'guest' para no mostrar botones admin
   const user = userStr
     ? JSON.parse(userStr)
     : { name: "Usuario", id: null, role: "guest" };
-
   const userName = user.name || "Doctor";
 
   const fetchStats = async () => {
     try {
-      // Enviamos user_id y role para que el backend sepa qué filtrar
       const res = await axios.get(
         `http://localhost/backend/dashboard_stats.php?user_id=${user.id}&role=${user.role}`
       );
@@ -52,7 +55,6 @@ export default function DashboardHome() {
     fetchStats();
   }, []);
 
-  // Estado de Carga (Loading)
   if (!stats) {
     return (
       <div className="flex items-center justify-center h-screen text-blue-600 font-medium animate-pulse">
@@ -61,21 +63,11 @@ export default function DashboardHome() {
     );
   }
 
-  // Datos simulados para la gráfica de curva
-  const activityData = [
-    { name: "Lun", estudios: 4 },
-    { name: "Mar", estudios: 7 },
-    { name: "Mie", estudios: 5 },
-    { name: "Jue", estudios: 10 },
-    { name: "Vie", estudios: 6 },
-    { name: "Sab", estudios: 3 },
-  ];
-
   const COLORS = ["#4318FF", "#6AD2FF", "#EFF4FB", "#FF8042"];
 
   return (
     <div className="space-y-8 pb-10">
-      {/* --- HEADER SUPERIOR --- */}
+      {/* --- HEADER --- */}
       <header className="flex justify-between items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl sticky top-0 z-10 border border-white/20">
         <div>
           <p className="text-sm text-gray-500">Bienvenido de nuevo,</p>
@@ -101,9 +93,9 @@ export default function DashboardHome() {
         </div>
       </header>
 
-      {/* --- BOTÓN FLOTANTE (SOLO ADMIN) --- */}
+      {/* --- BOTÓN ADMIN (SOLO ADMIN) --- */}
       <div className="flex justify-end">
-        {user.role === "admin" && (
+        {user.role === 'admin' && (
           <button
             onClick={() => setShowUploadModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 font-medium transition-all transform hover:-translate-y-1"
@@ -113,10 +105,10 @@ export default function DashboardHome() {
         )}
       </div>
 
-      {/* Modal de Subida */}
+      {/* MODAL DE SUBIDA */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full relative animate-fade-in-up">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full relative animate-fade-in-up max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowUploadModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-red-500 font-bold text-xl transition-colors"
@@ -129,68 +121,60 @@ export default function DashboardHome() {
             <UploadForm
               onSuccess={() => {
                 setShowUploadModal(false);
-                fetchStats(); // Recargar datos tras subir
+                fetchStats();
               }}
             />
           </div>
         </div>
       )}
 
-      {/* --- TARJETAS DE ESTADÍSTICAS --- */}
+      {/* --- TARJETAS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Pacientes Totales"
           value={stats.counts.patients}
           icon={<Users size={24} className="text-blue-600" />}
           bgIcon="bg-blue-100"
-          trend="+12%"
+          trend="+ Total Histórico"
         />
         <StatCard
           title="Estudios Realizados"
           value={stats.counts.studies}
           icon={<FileImage size={24} className="text-purple-600" />}
           bgIcon="bg-purple-100"
-          trend="+5%"
+          trend="+ Total Histórico"
         />
         <StatCard
           title="Espacio Usado"
           value={`${stats.counts.space_gb} GB`}
           icon={<HardDrive size={24} className="text-orange-600" />}
           bgIcon="bg-orange-100"
-          trend="Wasabi S3"
+          trend="Wasabi S3 Total"
         />
         <StatCard
           title="Este Mes"
           value={stats.counts.month_studies}
           icon={<Calendar size={24} className="text-green-600" />}
           bgIcon="bg-green-100"
-          trend="Actividad reciente"
+          trend="Mes Actual"
         />
       </div>
 
       {/* --- GRÁFICAS --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfica Izquierda */}
+        {/* GRÁFICA REAL SEMANAL */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-lg text-slate-800">
               Actividad Semanal
             </h3>
-            <button className="bg-gray-100 text-gray-500 px-3 py-1 rounded-lg text-xs font-medium">
-              Semanal
-            </button>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Semana Actual</span>
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activityData}>
+              <AreaChart data={stats.weekly_activity}>
                 <defs>
-                  <linearGradient
-                    id="colorEstudios"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
+                  <linearGradient id="colorEstudios" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4318FF" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#4318FF" stopOpacity={0} />
                   </linearGradient>
@@ -206,6 +190,7 @@ export default function DashboardHome() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "#A3AED0", fontSize: 12 }}
+                  allowDecimals={false}
                 />
                 <RechartsTooltip
                   contentStyle={{
@@ -227,10 +212,10 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Gráfica Derecha: Donut Chart */}
+        {/* GRÁFICA TIPOS (DONUT) */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="font-bold text-lg text-slate-800 mb-2">
-            Tipos de Estudios
+            Categorías de Estudios
           </h3>
           <div className="h-60 relative">
             <ResponsiveContainer width="100%" height="100%">
@@ -264,38 +249,29 @@ export default function DashboardHome() {
           </div>
 
           <div className="space-y-2 mt-4 max-h-32 overflow-y-auto">
-            {stats.by_type.map((type, i) => (
-              <div
-                key={i}
-                className="flex justify-between items-center text-sm"
-              >
+            {stats.by_type.map((item, i) => (
+              <div key={i} className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2">
                   <span
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: COLORS[i % COLORS.length] }}
                   ></span>
                   <span className="text-gray-500 capitalize">
-                    {type.file_type || "Desconocido"}
+                    {item.category || "Varios"}
                   </span>
                 </div>
-                <span className="font-bold text-slate-700">{type.count}</span>
+                <span className="font-bold text-slate-700">{item.count}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* --- LISTA INFERIOR: ÚLTIMOS PACIENTES --- */}
+      {/* --- TABLA RECIENTES --- */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-lg text-slate-800">
-            Pacientes Recientes
-          </h3>
-          <span className="text-blue-600 text-sm cursor-pointer hover:underline">
-            Ver todos
-          </span>
-        </div>
-
+        <h3 className="font-bold text-lg text-slate-800 mb-4">
+          Pacientes Recientes
+        </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -309,17 +285,18 @@ export default function DashboardHome() {
             <tbody className="text-sm">
               {stats.recent_patients.length > 0 ? (
                 stats.recent_patients.map((p, i) => (
-                  <tr
-                    key={i}
-                    className="group hover:bg-gray-50 transition-colors"
-                  >
+                  <tr key={i} className="group hover:bg-gray-50 transition-colors">
                     <td className="py-4 pl-2 font-bold text-slate-700">
                       {p.name}
                     </td>
                     <td className="py-4 text-gray-500">{p.dni}</td>
                     <td className="py-4 text-gray-500">{p.last_date}</td>
                     <td className="py-4">
-                      <button className="text-blue-600 font-medium hover:text-blue-800">
+                      {/* 3. BOTÓN CONECTADO AL ESTADO */}
+                      <button
+                        onClick={() => setSelectedPatientDni(p.dni)}
+                        className="text-blue-600 font-medium hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-lg transition-colors"
+                      >
                         Ver Historial
                       </button>
                     </td>
@@ -328,7 +305,7 @@ export default function DashboardHome() {
               ) : (
                 <tr>
                   <td colSpan="4" className="text-center py-8 text-gray-400">
-                    No hay pacientes recientes
+                    No hay actividad reciente.
                   </td>
                 </tr>
               )}
@@ -336,25 +313,30 @@ export default function DashboardHome() {
           </table>
         </div>
       </div>
+
+      {/* 4. MODAL DE HISTORIAL */}
+      {selectedPatientDni && (
+        <PatientHistoryModal
+          dni={selectedPatientDni}
+          onClose={() => setSelectedPatientDni(null)}
+        />
+      )}
+
     </div>
   );
 }
 
-// Componente de Tarjeta
 function StatCard({ title, value, icon, bgIcon, trend }) {
   return (
     <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-default">
-      <div
-        className={`w-14 h-14 rounded-full flex items-center justify-center ${bgIcon}`}
-      >
+      <div className={`w-14 h-14 rounded-full flex items-center justify-center ${bgIcon}`}>
         {icon}
       </div>
       <div>
         <p className="text-sm text-gray-400 font-medium">{title}</p>
         <h4 className="text-2xl font-bold text-slate-800 mt-1">{value}</h4>
-        <p className="text-xs text-green-500 font-medium mt-1 flex items-center gap-1">
-          {trend}{" "}
-          <span className="text-gray-300 font-normal">desde el mes pasado</span>
+        <p className="text-xs text-green-500 font-medium mt-1">
+          {trend}
         </p>
       </div>
     </div>

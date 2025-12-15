@@ -1,263 +1,436 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import { Upload, X, User, Search, Check } from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { Upload, X, User, Search, Check, Calendar, FileType, AlertCircle, FolderUp } from 'lucide-react';
+
+// --- CONFIGURACIÓN DE TIPOS DE ESTUDIO ---
+const STUDY_CATEGORIES = {
+  'Radiografía': {
+    types: ['Panorámica', 'Perfil', 'Periapical', 'Antero Posterior', 'Postero Anterior', 'Cefalometría', 'Coronales', 'Carpograma', 'ATM', 'Senos Maxilares'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Básico de Ortodoncia': {
+    types: ['Paquete Básico'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Plus de Ortodoncia': {
+    types: ['Paquete Plus'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Paquete Maxilofacial': {
+    types: ['Estudio Completo'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Paquete de Ortopedia': {
+    types: ['Estudio Ortopédico'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Paquete Diseño de Sonrisa': {
+    types: ['Diseño Digital'],
+    formats: ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx'],
+    accept: 'image/jpeg, image/png, application/pdf, .doc, .docx',
+    isFolder: false,
+    helper: 'Formatos: JPG, PNG, PDF, Word'
+  },
+  'Scanner': {
+    types: ['Escaneo Intraoral', 'Escaneo Facial', 'Modelo 3D'],
+    formats: ['.stl', '.ply'],
+    accept: '.stl, .ply',
+    isFolder: false,
+    helper: 'Solo formatos 3D: STL y PLY'
+  },
+  'Tomografía': {
+    types: ['Zona de diente', 'Cuadrante', 'Maxilar Superior', 'Maxilar Inferior', 'Bimaxilar', 'Cara Completa', 'Cráneo', 'ATM', 'Ramas Mandibulares', 'Senos Paranasales', 'Vías Aéreas', 'Vértebras'],
+    formats: [],
+    accept: '',
+    isFolder: true,
+    helper: 'Debes subir la CARPETA completa del estudio'
+  }
+};
 
 const UploadForm = ({ onSuccess }) => {
+  // Estado de Estado de Subida (Nuevo)
+  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
+
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  // Datos del Formulario
+  // Selectores
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStudyType, setSelectedStudyType] = useState('');
+
   const [formData, setFormData] = useState({
-    patient_dni: "",
-    patient_name: "",
-    study_name: "",
-    study_date: new Date().toISOString().split("T")[0],
-    doctor_id: "", // Aquí guardaremos el ID, no el nombre
+    patient_dni: '',
+    patient_name: '',
+    study_date: new Date().toISOString().split('T')[0],
+    doctor_id: ''
   });
 
-  // Estado para el buscador de doctores
-  const [doctorSearch, setDoctorSearch] = useState("");
+  // Buscador Doctor
+  const [doctorSearch, setDoctorSearch] = useState('');
   const [doctorsList, setDoctorsList] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [doctorSelectedValid, setDoctorSelectedValid] = useState(false);
 
-  // 1. Cargar lista de doctores al iniciar
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const res = await axios.get("http://localhost/backend/get_doctors.php");
+        const res = await axios.get('http://localhost/backend/get_doctors.php');
         setDoctorsList(res.data);
-      } catch (err) {
-        console.error("Error cargando doctores", err);
-      }
+      } catch (err) { console.error(err); }
     };
     fetchDoctors();
   }, []);
 
-  // 2. Manejo de archivos
+  useEffect(() => {
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [selectedCategory]);
+
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      if (selectedFile.type.startsWith("image/")) {
-        setPreview(URL.createObjectURL(selectedFile));
+    const selectedFiles = e.target.files;
+
+    if (selectedFiles.length > 0) {
+      const uploadedFile = selectedFiles[0];
+      const fileName = uploadedFile.name.toLowerCase();
+      const fileExt = "." + fileName.split('.').pop();
+
+      // Seguridad Frontend
+      if (fileName.endsWith('.php') || fileName.endsWith('.exe') || fileName.endsWith('.js')) {
+        setErrorMessage('⚠️ ARCHIVO PELIGROSO DETECTADO.');
+        setUploadStatus('error');
+        setFile(null);
+        e.target.value = "";
+        return;
+      }
+
+      // Validación Formato
+      if (selectedCategory && !STUDY_CATEGORIES[selectedCategory].isFolder) {
+        const allowed = STUDY_CATEGORIES[selectedCategory].formats;
+        if (!allowed.includes(fileExt)) {
+          setErrorMessage(`⚠️ Formato incorrecto. Solo se permite: ${allowed.join(', ')}`);
+          setUploadStatus('error');
+          setFile(null);
+          e.target.value = "";
+          return;
+        }
+      }
+
+      setUploadStatus('idle'); // Limpiar error si selecciona bien
+      setFile(uploadedFile);
+
+      if (['.jpg', '.jpeg', '.png'].includes(fileExt)) {
+        setPreview(URL.createObjectURL(uploadedFile));
       } else {
         setPreview(null);
       }
     }
   };
 
-  // 3. Lógica de selección de doctor
-  const filteredDoctors = doctorsList.filter((doc) =>
+  const filteredDoctors = doctorsList.filter(doc =>
     doc.name.toLowerCase().includes(doctorSearch.toLowerCase())
   );
 
+  const handleDoctorSearchChange = (e) => {
+    setDoctorSearch(e.target.value);
+    setShowSuggestions(true);
+    setFormData({ ...formData, doctor_id: '' });
+    setDoctorSelectedValid(false);
+  };
+
   const selectDoctor = (doc) => {
     setFormData({ ...formData, doctor_id: doc.id });
-    setDoctorSearch(doc.name); // Mostramos el nombre en el input
+    setDoctorSearch(doc.name);
+    setDoctorSelectedValid(true);
     setShowSuggestions(false);
   };
 
-  // 4. Enviar Formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    setUploadStatus('loading');
+    setErrorMessage('');
 
-    // Validar Rol Admin (Doble seguridad frontend)
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.role !== "admin") {
-      setError("No tienes permisos para subir archivos.");
-      setLoading(false);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role !== 'admin') {
+      setErrorMessage("No tienes permisos.");
+      setUploadStatus('error');
       return;
     }
 
     if (!formData.doctor_id) {
-      setError("Por favor selecciona un doctor de la lista.");
-      setLoading(false);
+      setErrorMessage("⚠️ Debes seleccionar un doctor válido de la lista.");
+      setUploadStatus('error');
+      return;
+    }
+
+    if (!selectedCategory || !selectedStudyType) {
+      setErrorMessage("Selecciona la categoría y el tipo de estudio.");
+      setUploadStatus('error');
       return;
     }
 
     const data = new FormData();
-    data.append("file", file);
-    data.append("patient_dni", formData.patient_dni);
-    data.append("patient_name", formData.patient_name);
-    data.append("study_name", formData.study_name);
-    data.append("study_date", formData.study_date);
-    data.append("doctor_id", formData.doctor_id);
-    data.append("uploader_role", user.role); // Enviamos rol para validación backend
+    data.append('file', file);
+    data.append('patient_dni', formData.patient_dni);
+    data.append('patient_name', formData.patient_name);
+    data.append('study_name', `${selectedCategory} - ${selectedStudyType}`);
+    data.append('study_date', formData.study_date);
+    data.append('doctor_id', formData.doctor_id);
+    data.append('uploader_role', user.role);
 
     try {
-      await axios.post("http://localhost/backend/upload.php", data, {
-        headers: { "Content-Type": "multipart/form-data" },
+      await axios.post('http://localhost/backend/upload.php', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      onSuccess(); // Cerrar modal y recargar
+
+      // --- ÉXITO ---
+      setUploadStatus('success');
+
+      // Esperamos 2 segundos mostrando el mensaje de éxito antes de cerrar
+      setTimeout(() => {
+        onSuccess();
+      }, 2000);
+
     } catch (err) {
-      setError(err.response?.data?.error || "Error al subir estudio");
-    } finally {
-      setLoading(false);
+      setErrorMessage(err.response?.data?.error || "Error al subir estudio");
+      setUploadStatus('error');
     }
   };
 
+  const currentConfig = STUDY_CATEGORIES[selectedCategory] || {};
+
+  // --- PANTALLA DE ÉXITO ---
+  if (uploadStatus === 'success') {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 space-y-4 animate-fade-in-up">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-2 shadow-inner">
+          <Check size={40} className="text-green-600 animate-bounce" />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-800">¡Estudio Subido!</h3>
+        <p className="text-gray-500 text-center">El archivo se ha guardado correctamente y el doctor ya puede visualizarlo.</p>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="p-3 bg-red-100 text-red-600 rounded-lg text-sm">
-          {error}
+    <form onSubmit={handleSubmit} className="space-y-5 text-gray-700 relative">
+
+      {/* --- MENSAJE DE ERROR --- */}
+      {uploadStatus === 'error' && (
+        <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center justify-between border border-red-200 animate-pulse mb-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} />
+            <span>{errorMessage}</span>
+          </div>
+          <button type="button" onClick={() => setUploadStatus('idle')}><X size={16} /></button>
         </div>
       )}
 
+      {/* 1. Datos del Paciente */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Input Paciente DNI */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Documento Paciente
-          </label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Documento Paciente</label>
           <input
-            type="text"
-            required
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            type="text" required
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
             placeholder="Ej: 12345678"
             value={formData.patient_dni}
-            onChange={(e) =>
-              setFormData({ ...formData, patient_dni: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, patient_dni: e.target.value })}
           />
         </div>
-
-        {/* Input Paciente Nombre */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre Paciente
-          </label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nombre Paciente</label>
           <input
-            type="text"
-            required
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            type="text" required
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
             placeholder="Nombre completo"
             value={formData.patient_name}
-            onChange={(e) =>
-              setFormData({ ...formData, patient_name: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
           />
         </div>
       </div>
 
-      {/* --- BUSCADOR DE DOCTOR (AUTOCOMPLETE) --- */}
+      {/* 2. Asignar Doctor */}
       <div className="relative">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
           Asignar Doctor
+          {doctorSelectedValid && <span className="ml-2 text-green-500 text-xs font-normal">✓ Seleccionado</span>}
         </label>
-        <div className="relative">
-          <User className="absolute left-3 top-2.5 text-gray-400" size={18} />
+        <div className="relative group">
+          <User className={`absolute left-3 top-3 transition-colors ${doctorSelectedValid ? 'text-green-500' : 'text-gray-400'}`} size={18} />
           <input
             type="text"
-            className="w-full pl-10 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Escribe para buscar doctor..."
+            required
+            className={`w-full pl-10 p-2.5 bg-gray-50 border rounded-lg focus:ring-2 outline-none transition-all ${doctorSelectedValid
+                ? 'border-green-400 bg-green-50 text-green-800 focus:ring-green-500'
+                : 'border-gray-200 focus:ring-blue-500'
+              }`}
+            placeholder="Escribe para buscar..."
             value={doctorSearch}
-            onChange={(e) => {
-              setDoctorSearch(e.target.value);
-              setFormData({ ...formData, doctor_id: "" }); // Reset ID si edita texto
-              setShowSuggestions(true);
-            }}
+            onChange={handleDoctorSearchChange}
             onFocus={() => setShowSuggestions(true)}
           />
+          {doctorSelectedValid && (
+            <button
+              type="button"
+              onClick={() => {
+                setDoctorSearch('');
+                setFormData({ ...formData, doctor_id: '' });
+                setDoctorSelectedValid(false);
+              }}
+              className="absolute right-3 top-3 text-gray-400 hover:text-red-500"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
-
-        {/* Lista de Sugerencias Flotante */}
-        {showSuggestions && doctorSearch && (
-          <div className="absolute z-10 w-full bg-white mt-1 border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+        {showSuggestions && doctorSearch && !doctorSelectedValid && (
+          <div className="absolute z-20 w-full bg-white mt-1 border border-gray-200 rounded-lg shadow-xl max-h-40 overflow-y-auto">
             {filteredDoctors.length > 0 ? (
-              filteredDoctors.map((doc) => (
-                <div
-                  key={doc.id}
-                  onClick={() => selectDoctor(doc)}
-                  className="p-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 text-sm text-gray-700"
-                >
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs text-blue-600 font-bold">
-                    {doc.name.charAt(0)}
-                  </div>
-                  {doc.name}
+              filteredDoctors.map(doc => (
+                <div key={doc.id} onClick={() => selectDoctor(doc)} className="p-3 hover:bg-blue-50 cursor-pointer flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs">{doc.name.charAt(0)}</div>
+                  <span className="font-medium text-gray-700">{doc.name}</span>
                 </div>
               ))
             ) : (
-              <div className="p-2 text-sm text-gray-400">
-                No se encontraron doctores
-              </div>
+              <div className="p-3 text-gray-400 text-sm text-center">No se encontraron doctores.</div>
             )}
           </div>
         )}
       </div>
 
+      {/* 3. Categoría y Tipo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nombre del Estudio
-          </label>
-          <input
-            type="text"
-            required
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="Ej: Radiografía Tórax"
-            value={formData.study_name}
-            onChange={(e) =>
-              setFormData({ ...formData, study_name: e.target.value })
-            }
-          />
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Categoría</label>
+          <div className="relative">
+            <FileType className="absolute left-3 top-3 text-gray-400" size={18} />
+            <select
+              className="w-full pl-10 p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none appearance-none cursor-pointer"
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setSelectedStudyType('');
+              }}
+              required
+            >
+              <option value="">Selecciona Categoría...</option>
+              {Object.keys(STUDY_CATEGORIES).map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fecha
-          </label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Tipo de Estudio</label>
+          <select
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none disabled:bg-gray-100 disabled:text-gray-400"
+            value={selectedStudyType}
+            onChange={(e) => setSelectedStudyType(e.target.value)}
+            disabled={!selectedCategory}
+            required
+          >
+            <option value="">{selectedCategory ? 'Selecciona tipo...' : 'Primero elige categoría'}</option>
+            {selectedCategory && STUDY_CATEGORIES[selectedCategory].types.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 4. Fecha (NATIVO - Diseño Anterior) */}
+      <div>
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Fecha del Estudio</label>
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Calendar className="text-gray-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+          </div>
           <input
             type="date"
             required
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full pl-10 p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none text-gray-600 font-medium"
             value={formData.study_date}
-            onChange={(e) =>
-              setFormData({ ...formData, study_date: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, study_date: e.target.value })}
           />
         </div>
       </div>
 
-      {/* Zona de Archivo */}
-      <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors relative">
+      {/* 5. Zona de Archivo */}
+      <div
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all relative ${file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+          }`}
+      >
         <input
           type="file"
+          ref={fileInputRef}
           onChange={handleFileChange}
           required
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          accept={currentConfig.accept}
+          {...(currentConfig.isFolder ? { webkitdirectory: "", directory: "" } : {})}
         />
+
         {file ? (
-          <div className="flex items-center justify-center gap-2 text-green-600">
-            <Check size={20} />
-            <span className="font-medium truncate max-w-xs">{file.name}</span>
+          <div className="flex flex-col items-center text-green-700 animate-fade-in-up">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+              <Check size={24} />
+            </div>
+            <span className="font-bold text-lg">{file.name}</span>
+            <span className="text-xs mt-1 opacity-80">
+              {(file.size / 1024 / 1024).toFixed(2)} MB
+            </span>
           </div>
         ) : (
           <div className="text-gray-500">
-            <Upload className="mx-auto mb-2 text-gray-400" size={24} />
-            <p className="text-sm">
-              Click para subir archivo (Imagen, DICOM, PDF)
+            {currentConfig.isFolder ? (
+              <FolderUp className="mx-auto mb-3 text-orange-400" size={40} />
+            ) : (
+              <Upload className="mx-auto mb-3 text-blue-400" size={40} />
+            )}
+            <p className="font-medium text-gray-700">
+              {currentConfig.isFolder
+                ? 'Click para seleccionar CARPETA'
+                : 'Click para seleccionar archivo'}
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              {currentConfig.helper || 'Selecciona una categoría primero'}
             </p>
           </div>
         )}
       </div>
 
-      {/* Previsualización pequeña */}
       {preview && (
-        <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
           <img src={preview} alt="Preview" className="h-full object-contain" />
         </div>
       )}
 
       <button
         type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        disabled={uploadStatus === 'loading' || !file || !doctorSelectedValid}
+        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
       >
-        {loading ? "Subiendo..." : "Confirmar Subida"}
+        {uploadStatus === 'loading' ? 'Subiendo...' : 'Confirmar y Subir Estudio'}
       </button>
     </form>
   );

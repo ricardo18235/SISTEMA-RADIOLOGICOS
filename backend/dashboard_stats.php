@@ -6,7 +6,6 @@ $userId = $_GET['user_id'] ?? null;
 $role = $_GET['role'] ?? 'admin';
 
 try {
-    // Inicializar estructura que espera tu Frontend
     $response = [
         'counts' => [
             'patients' => 0,
@@ -14,11 +13,12 @@ try {
             'space_gb' => 0,
             'month_studies' => 0
         ],
-        'by_type' => [], // Para la gráfica de Donut
-        'recent_patients' => [] // Para la tabla inferior
+        'by_type' => [],
+        'recent_patients' => [],
+        'weekly_activity' => [] // <--- NUEVO CAMPO
     ];
 
-    // --- FILTROS SEGÚN ROL ---
+    // --- FILTROS ---
     $whereDoctor = "";
     $params = [];
     
@@ -27,20 +27,21 @@ try {
         $params[] = $userId;
     }
 
-    // 1. CONTEOS GENERALES
+    // 1. CONTEOS (Lógica confirmada: Totales históricos y mes actual)
+    
     // Pacientes
     $sql = "SELECT COUNT(*) FROM patients" . ($role === 'doctor' ? " WHERE doctor_id = ?" : "");
     $stmt = $pdo->prepare($sql);
     $role === 'doctor' ? $stmt->execute([$userId]) : $stmt->execute();
     $response['counts']['patients'] = $stmt->fetchColumn();
 
-    // Estudios
+    // Estudios (Total Histórico)
     $sql = "SELECT COUNT(*) FROM studies" . $whereDoctor;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $response['counts']['studies'] = $stmt->fetchColumn();
 
-    // Espacio (GB)
+    // Espacio (Total Histórico)
     $sql = "SELECT SUM(file_size) FROM studies" . $whereDoctor;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -48,29 +49,36 @@ try {
     $gb = $bytes ? ($bytes / 1073741824) : 0;
     $response['counts']['space_gb'] = round($gb, 4);
 
-    // Estudios del Mes
-    $sql = "SELECT COUNT(*) FROM studies WHERE MONTH(study_date) = MONTH(CURRENT_DATE()) AND YEAR(study_date) = YEAR(CURRENT_DATE())" . ($role === 'doctor' ? " AND doctor_id = ?" : "");
+    // Estudios del Mes (Estricto mes actual)
+    $sql = "SELECT COUNT(*) FROM studies 
+            WHERE MONTH(study_date) = MONTH(CURRENT_DATE()) 
+            AND YEAR(study_date) = YEAR(CURRENT_DATE())" . 
+            ($role === 'doctor' ? " AND doctor_id = ?" : "");
     $stmt = $pdo->prepare($sql);
     $role === 'doctor' ? $stmt->execute([$userId]) : $stmt->execute();
     $response['counts']['month_studies'] = $stmt->fetchColumn();
 
-    // 2. DATOS PARA GRÁFICA DONUT (Agrupado por tipo)
-    $sql = "SELECT file_type, COUNT(*) as count FROM studies " . $whereDoctor . " GROUP BY file_type";
+    // 2. TIPOS DE ESTUDIOS (Agrupado por CATEGORÍA MÉDICA)
+    // Usamos SUBSTRING_INDEX para tomar solo la parte antes del guion " - "
+    // Ej: De "Radiografía - Panorámica" extrae "Radiografía"
+    $sql = "SELECT 
+                SUBSTRING_INDEX(study_name, ' - ', 1) as category, 
+                COUNT(*) as count 
+            FROM studies " . $whereDoctor . " 
+            GROUP BY category";
+            
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $types = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Si no hay datos, enviamos un array vacío o datos dummy para que no se rompa
     if (empty($types)) {
-        $response['by_type'] = [
-            ['file_type' => 'Sin datos', 'count' => 1]
-        ];
+        // Placeholder si está vacío
+        $response['by_type'] = [['category' => 'Sin datos', 'count' => 1]]; 
     } else {
         $response['by_type'] = $types;
     }
 
-    // 3. PACIENTES RECIENTES (Para la tabla)
-    // Hacemos un JOIN para saber la fecha del último estudio
+    // 3. PACIENTES RECIENTES
     if ($role === 'admin') {
         $sql = "SELECT p.name, p.dni, MAX(s.study_date) as last_date 
                 FROM patients p 
@@ -89,13 +97,46 @@ try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$userId]);
     }
-    
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    // Formatear fecha bonita si es null
     foreach ($patients as &$p) {
         if (!$p['last_date']) $p['last_date'] = 'Sin estudios';
     }
     $response['recent_patients'] = $patients;
+
+    // 4. ACTIVIDAD SEMANAL (NUEVA LÓGICA REAL)
+    // Inicializamos la semana en 0
+    $weekData = [
+        'Lun' => 0, 'Mar' => 0, 'Mie' => 0, 'Jue' => 0, 'Vie' => 0, 'Sab' => 0, 'Dom' => 0
+    ];
+    
+    // Mapeo de índice MySQL (0=Lunes... 6=Domingo) a nuestras claves
+    $dayMap = [0 => 'Lun', 1 => 'Mar', 2 => 'Mie', 3 => 'Jue', 4 => 'Vie', 5 => 'Sab', 6 => 'Dom'];
+
+    // Query: Agrupar por día de la semana SOLO de la semana actual
+    // WEEKDAY devuelve 0 para Lunes, 6 para Domingo
+    // YEARWEEK(..., 1) asegura que la semana empiece en Lunes
+    $sql = "SELECT WEEKDAY(study_date) as day_index, COUNT(*) as total 
+            FROM studies 
+            WHERE YEARWEEK(study_date, 1) = YEARWEEK(CURDATE(), 1) " . 
+            ($role === 'doctor' ? " AND doctor_id = ?" : "") . 
+            " GROUP BY day_index";
+
+    $stmt = $pdo->prepare($sql);
+    $role === 'doctor' ? $stmt->execute([$userId]) : $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Rellenamos los datos reales
+    foreach ($results as $row) {
+        $dayName = $dayMap[$row['day_index']];
+        $weekData[$dayName] = (int)$row['total'];
+    }
+
+    // Convertimos al formato que quiere Recharts [{name: 'Lun', estudios: 0}, ...]
+    $chartData = [];
+    foreach ($weekData as $day => $count) {
+        $chartData[] = ['name' => $day, 'estudios' => $count];
+    }
+    $response['weekly_activity'] = $chartData;
 
     echo json_encode($response);
 

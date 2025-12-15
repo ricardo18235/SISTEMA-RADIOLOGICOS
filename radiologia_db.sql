@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1:3306
--- Tiempo de generación: 15-12-2025 a las 12:05:23
--- Versión del servidor: 8.3.0
--- Versión de PHP: 8.2.18
+-- Tiempo de generación: 15-12-2025 a las 22:29:58
+-- Versión del servidor: 8.4.7
+-- Versión de PHP: 8.3.28
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -36,7 +36,14 @@ CREATE TABLE IF NOT EXISTS `patients` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `doctor_id` (`doctor_id`,`dni`)
-) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `patients`
+--
+
+INSERT INTO `patients` (`id`, `doctor_id`, `dni`, `name`, `created_at`) VALUES
+(11, 6, '123123', 'ricardo prueba', '2025-12-15 22:12:48');
 
 -- --------------------------------------------------------
 
@@ -58,7 +65,14 @@ CREATE TABLE IF NOT EXISTS `studies` (
   PRIMARY KEY (`id`),
   KEY `patient_id` (`patient_id`),
   KEY `doctor_id` (`doctor_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `studies`
+--
+
+INSERT INTO `studies` (`id`, `patient_id`, `doctor_id`, `study_name`, `file_url`, `file_type`, `study_date`, `created_at`, `file_size`) VALUES
+(9, 11, 6, 'Radiografía - Panorámica', 'https://s3.us-east-1.wasabisys.com/radio-sistema-archivos-2025/estudios/694087e006983.jpg', 'image', '2025-12-15', '2025-12-15 22:12:48', 153897);
 
 -- --------------------------------------------------------
 
