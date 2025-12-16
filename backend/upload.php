@@ -8,13 +8,29 @@ require 's3.php'; // Aquí ya tenemos la variable $s3 lista
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+// --- BLOQUE NUEVO: Detección de Archivo Gigante ---
+// Si $_FILES y $_POST están vacíos, pero el navegador envió datos,
+// significa que el archivo excedió el post_max_size de php.ini
+if (empty($_FILES) && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+    http_response_code(413); // Error 413: Payload Too Large
+    echo json_encode([
+        "error" => "El archivo es demasiado pesado para el servidor. Configura post_max_size y upload_max_filesize en php.ini."
+    ]);
+    exit;
+}
+// --------------------------------------------------
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // 1. SEGURIDAD DE ROL (Solo Admin puede subir)
+    // Usamos el operador coalescente (??) por si la variable viene vacía
     $uploaderRole = $_POST['uploader_role'] ?? 'unknown';
+    
     if ($uploaderRole !== 'admin') {
         http_response_code(403);
-        echo json_encode(["error" => "Permiso denegado. Solo administradores pueden subir archivos."]);
+        echo json_encode([
+            "error" => "Permiso denegado. Solo administradores pueden subir archivos. (Rol detectado: $uploaderRole)"
+        ]);
         exit;
     }
 
@@ -22,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $doctorId = $_POST['doctor_id'] ?? null;
     $patientDni = $_POST['patient_dni'] ?? null;
     $patientName = $_POST['patient_name'] ?? null;
-    $studyName = $_POST['study_name'] ?? null; // Ahora viene como "Categoría - Tipo"
+    $studyName = $_POST['study_name'] ?? null; 
     $studyDate = $_POST['study_date'] ?? null;
 
     if (!$doctorId || !$patientDni || !isset($_FILES['file'])) {
@@ -49,10 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $file = $_FILES['file'];
         $fileNameOriginal = $file['name'];
         $extRaw = pathinfo($fileNameOriginal, PATHINFO_EXTENSION);
-        $ext = strtolower($extRaw); // Extensión en minúsculas
+        $ext = strtolower($extRaw); 
 
         // --- FILTRO DE SEGURIDAD (ANTI-HACKEO) ---
-        // Lista negra de extensiones peligrosas
         $forbiddenExts = ['php', 'php3', 'php4', 'phtml', 'exe', 'sh', 'bat', 'cmd', 'js', 'jar', 'vbs', 'py'];
         
         if (in_array($ext, $forbiddenExts)) {
@@ -60,36 +75,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(["error" => "ALERTA DE SEGURIDAD: Tipo de archivo prohibido."]);
             exit;
         }
-        // ----------------------------------------
 
         // Configuración para Wasabi
-        $bucketName = 'radio-sistema-archivos-2025'; // Asegúrate que este sea tu bucket real
+        // Usamos la variable global de s3.php si existe, si no, usamos el string
+        $targetBucket = isset($bucket_name) ? $bucket_name : 'radio-sistema-archivos-2025';
         $keyName = 'estudios/' . uniqid() . '.' . $ext;
 
-        // 4. SUBIR A WASABI
+        // 4. SUBIR A WASABI (PRIVADO)
         $result = $s3->putObject([
-            'Bucket' => $bucketName,
+            'Bucket' => $targetBucket,
             'Key'    => $keyName,
             'SourceFile' => $file['tmp_name'],
-            'ACL'    => 'public-read',
-            'ContentType' => $file['type'] // Detecta si es imagen, pdf, etc.
+            // 'ACL' => 'public-read', // COMENTADO: Ahora subimos privado por seguridad
+            'ContentType' => $file['type'] 
         ]);
         
-        // URL final
-        $fileUrl = "https://s3.us-east-1.wasabisys.com/" . $bucketName . "/" . $keyName;
+        // URL Base (Solo referencial, el acceso real será por URL firmada)
+        $fileUrl = "https://s3.us-east-1.wasabisys.com/" . $targetBucket . "/" . $keyName;
 
         // 5. CLASIFICACIÓN PARA BASE DE DATOS
-        // Esto sirve para que las gráficas de "Tipos de Estudios" se pinten bien
-        $type = 'image'; // Por defecto
+        $type = 'image'; 
         if (in_array($ext, ['dcm', 'dicom'])) $type = 'dicom';
         if (in_array($ext, ['stl', 'ply'])) $type = '3d_scan';
         if ($ext === 'pdf') $type = 'pdf';
         if (in_array($ext, ['doc', 'docx'])) $type = 'document';
-        // Si subieron una carpeta (normalmente el navegador la comprime o sube archivos sueltos, 
-        // pero si subimos un zip o similar para tomografía):
         if (in_array($ext, ['zip', 'rar'])) $type = 'tomography';
 
-        // Capturar tamaño
         $fileSize = $file['size']; 
 
         // 6. GUARDAR EN MYSQL
