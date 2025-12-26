@@ -38,8 +38,8 @@ try {
         $stmt->execute([$decoded->id]);
 
     } elseif ($role === 'admin') {
-        // Admin ve todo? O lista doctores. Aquí retornamos una lista general simplificada
-        $sql = "SELECT s.*, p.name as patient_name, u.name as doctor_name 
+        // Admin ve todos los estudios con información completa
+        $sql = "SELECT s.*, p.name as patient_name, p.dni as patient_dni, u.name as doctor_name 
                 FROM studies s 
                 JOIN patients p ON s.patient_id = p.id 
                 JOIN users u ON s.doctor_id = u.id

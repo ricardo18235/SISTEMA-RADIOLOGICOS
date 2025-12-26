@@ -12,7 +12,6 @@ import {
   Cell,
 } from "recharts";
 import {
-  Search,
   Bell,
   UploadCloud,
   Users,
@@ -75,14 +74,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-full shadow-sm px-4">
-          <div className="flex items-center gap-2 bg-[#F4F7FE] px-4 py-2 rounded-full text-gray-500">
-            <Search size={18} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              className="bg-transparent outline-none text-sm w-32 md:w-64"
-            />
-          </div>
           <button className="text-gray-400 hover:text-blue-600 relative p-1">
             <Bell size={20} />
             <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -95,7 +86,7 @@ export default function DashboardHome() {
 
       {/* --- BOTÓN ADMIN (SOLO ADMIN) --- */}
       <div className="flex justify-end">
-        {user.role === 'admin' && (
+        {user.role === "admin" && (
           <button
             onClick={() => setShowUploadModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 font-medium transition-all transform hover:-translate-y-1"
@@ -168,13 +159,21 @@ export default function DashboardHome() {
             <h3 className="font-bold text-lg text-slate-800">
               Actividad Semanal
             </h3>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Semana Actual</span>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
+              Semana Actual
+            </span>
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.weekly_activity}>
                 <defs>
-                  <linearGradient id="colorEstudios" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="colorEstudios"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="5%" stopColor="#4318FF" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="#4318FF" stopOpacity={0} />
                   </linearGradient>
@@ -250,7 +249,10 @@ export default function DashboardHome() {
 
           <div className="space-y-2 mt-4 max-h-32 overflow-y-auto">
             {stats.by_type.map((item, i) => (
-              <div key={i} className="flex justify-between items-center text-sm">
+              <div
+                key={i}
+                className="flex justify-between items-center text-sm"
+              >
                 <div className="flex items-center gap-2">
                   <span
                     className="w-3 h-3 rounded-full"
@@ -285,7 +287,10 @@ export default function DashboardHome() {
             <tbody className="text-sm">
               {stats.recent_patients.length > 0 ? (
                 stats.recent_patients.map((p, i) => (
-                  <tr key={i} className="group hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={i}
+                    className="group hover:bg-gray-50 transition-colors"
+                  >
                     <td className="py-4 pl-2 font-bold text-slate-700">
                       {p.name}
                     </td>
@@ -321,7 +326,6 @@ export default function DashboardHome() {
           onClose={() => setSelectedPatientDni(null)}
         />
       )}
-
     </div>
   );
 }
@@ -329,15 +333,15 @@ export default function DashboardHome() {
 function StatCard({ title, value, icon, bgIcon, trend }) {
   return (
     <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-default">
-      <div className={`w-14 h-14 rounded-full flex items-center justify-center ${bgIcon}`}>
+      <div
+        className={`w-14 h-14 rounded-full flex items-center justify-center ${bgIcon}`}
+      >
         {icon}
       </div>
       <div>
         <p className="text-sm text-gray-400 font-medium">{title}</p>
         <h4 className="text-2xl font-bold text-slate-800 mt-1">{value}</h4>
-        <p className="text-xs text-green-500 font-medium mt-1">
-          {trend}
-        </p>
+        <p className="text-xs text-green-500 font-medium mt-1">{trend}</p>
       </div>
     </div>
   );

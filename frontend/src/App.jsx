@@ -8,7 +8,7 @@ import {
 import Login from "./pages/Login";
 import DashboardHome from "./pages/DashboardHome";
 import Doctors from "./pages/Doctors";
-import StudyList from "./components/StudyList"; // Usaremos esto para la vista de pacientes por ahora
+import Patients from "./pages/Patients";
 import Sidebar from "./components/Sidebar";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -24,8 +24,8 @@ const DashboardLayout = () => {
   return (
     <div className="flex bg-[#F4F7FE] min-h-screen font-sans">
       <Sidebar onLogout={logout} />
-      {/* Ajustamos el margen para compensar el sidebar de 72px */}
-      <div className="flex-1 ml-72 p-8 overflow-y-auto h-screen">
+      {/* Sidebar en desktop, responsive margen en mobile */}
+      <div className="flex-1 ml-0 lg:ml-72 p-4 md:p-6 lg:p-8 overflow-y-auto min-h-screen">
         <Outlet />
       </div>
     </div>
@@ -39,19 +39,6 @@ const PrivateRoute = () => {
 };
 
 function App() {
-  // Estado para reutilizar la lista de estudios en la pestaña "Pacientes"
-  const [studies, setStudies] = useState([]);
-
-  useEffect(() => {
-    // Carga inicial simple si estamos logueados
-    if (localStorage.getItem("token")) {
-      axios
-        .get("http://localhost/backend/get_studies.php")
-        .then((res) => setStudies(res.data))
-        .catch(() => {});
-    }
-  }, []);
-
   return (
     <BrowserRouter>
       <Routes>
@@ -61,22 +48,7 @@ function App() {
         <Route path="/dashboard" element={<PrivateRoute />}>
           <Route index element={<DashboardHome />} />
           <Route path="doctors" element={<Doctors />} />
-
-          {/* Reutilizamos StudyList para la vista de Pacientes por simplicidad */}
-          <Route
-            path="patients"
-            element={
-              <div className="p-8">
-                <h2 className="text-3xl font-bold mb-6 text-slate-800">
-                  Listado General de Pacientes y Estudios
-                </h2>
-                <StudyList
-                  studies={studies}
-                  role={localStorage.getItem("role")}
-                />
-              </div>
-            }
-          />
+          <Route path="patients" element={<Patients />} />
         </Route>
       </Routes>
     </BrowserRouter>
