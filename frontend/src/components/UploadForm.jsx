@@ -595,7 +595,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
               </div>
               <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all duration-300 ease-out rounded-full"
+                  className="bg-linear-to-r from-blue-500 to-blue-600 h-full transition-all duration-300 ease-out rounded-full"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -607,7 +607,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
       <button
         type="submit"
         disabled={uploadStatus === "loading" || !file || !doctorSelectedValid}
-        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+        className="w-full bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
       >
         {uploadStatus === "loading"
           ? "Subiendo..."

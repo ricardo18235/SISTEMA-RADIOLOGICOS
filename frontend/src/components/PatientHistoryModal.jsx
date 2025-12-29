@@ -232,7 +232,7 @@ export default function PatientHistoryModal({ dni, onClose }) {
 
       {/* --- VISOR OSCURO (OVERLAY) --- */}
       {viewingFile && (
-        <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-60 bg-black/95 flex flex-col animate-in fade-in duration-200">
           {/* Toolbar Superior */}
           <div className="flex justify-between items-center px-6 py-4 text-white bg-black/50 backdrop-blur-md absolute top-0 w-full z-10 border-b border-white/10">
             <h3 className="font-medium text-gray-300 flex items-center gap-2">
