@@ -6,6 +6,8 @@ import {
   Outlet,
 } from "react-router-dom";
 import Login from "./pages/Login";
+import PatientLogin from "./pages/PatientLogin";
+import PatientStudies from "./pages/PatientStudies";
 import DashboardHome from "./pages/DashboardHome";
 import Doctors from "./pages/Doctors";
 import Patients from "./pages/Patients";
@@ -43,6 +45,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/patient-login" element={<PatientLogin />} />
+        <Route path="/patient-studies" element={<PatientStudies />} />
 
         {/* Rutas protegidas dentro del Dashboard */}
         <Route path="/dashboard" element={<PrivateRoute />}>

@@ -23,6 +23,7 @@ try {
     $doctorId = $input->doctor_id;
     $patientDni = $input->patient_dni;
     $patientName = $input->patient_name;
+    $patientEmail = $input->patient_email ?? null; // Puede venir del frontend
     $studyName = $input->study_name;
     $studyDate = $input->study_date;
     $fileKey = $input->file_key;     // Ruta en Wasabi (estudios/xyz.jpg)
@@ -34,15 +35,22 @@ try {
     $fileUrl = "https://s3.us-east-1.wasabisys.com/" . $bucketName . "/" . $fileKey;
 
     // 2. Buscar o Crear Paciente
-    $stmt = $pdo->prepare("SELECT id FROM patients WHERE dni = ? AND doctor_id = ?");
+    $stmt = $pdo->prepare("SELECT id, email FROM patients WHERE dni = ? AND doctor_id = ?");
     $stmt->execute([$patientDni, $doctorId]);
     $patient = $stmt->fetch();
 
     if ($patient) {
         $patientId = $patient['id'];
+        // Usar email existente o el nuevo si fue proporcionado
+        if ($patientEmail && !$patient['email']) {
+            $stmt = $pdo->prepare("UPDATE patients SET email = ? WHERE id = ?");
+            $stmt->execute([$patientEmail, $patientId]);
+        } elseif ($patient['email']) {
+            $patientEmail = $patient['email'];
+        }
     } else {
-        $stmt = $pdo->prepare("INSERT INTO patients (doctor_id, dni, name) VALUES (?, ?, ?)");
-        $stmt->execute([$doctorId, $patientDni, $patientName]);
+        $stmt = $pdo->prepare("INSERT INTO patients (doctor_id, dni, name, email) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$doctorId, $patientDni, $patientName, $patientEmail]);
         $patientId = $pdo->lastInsertId();
     }
 
@@ -57,8 +65,35 @@ try {
     // 4. Insertar Estudio
     $stmt = $pdo->prepare("INSERT INTO studies (patient_id, doctor_id, study_name, file_url, file_type, study_date, file_size) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([$patientId, $doctorId, $studyName, $fileUrl, $type, $studyDate, $fileSize]);
+    $studyId = $pdo->lastInsertId();
 
-    echo json_encode(['message' => 'Estudio registrado exitosamente']);
+    // 5. Obtener información del doctor
+    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'doctor'");
+    $stmt->execute([$doctorId]);
+    $doctor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 6. Crear notificación para el doctor en la BD
+    $notificationMessage = "Se ha cargado un nuevo estudio: $studyName para el paciente $patientName (DNI: $patientDni)";
+    $stmt = $pdo->prepare(
+        "INSERT INTO notifications (doctor_id, patient_id, study_id, message, is_read, created_at) 
+         VALUES (?, ?, ?, ?, FALSE, NOW())"
+    );
+    $result = $stmt->execute([$doctorId, $patientId, $studyId, $notificationMessage]);
+    
+    if (!$result) {
+        error_log("Error creando notificación: " . json_encode($stmt->errorInfo()));
+    }
+
+    // Emails deshabilitados temporalmente — solo notificación in-app
+
+    // 9. Respuesta al cliente
+    echo json_encode([
+        'message' => 'Estudio registrado exitosamente',
+        'study_id' => $studyId,
+        'notifications' => [
+            'in_app_notification_created' => true
+        ]
+    ]);
 
 } catch (Exception $e) {
     http_response_code(500);

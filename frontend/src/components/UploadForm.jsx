@@ -113,6 +113,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
   const [formData, setFormData] = useState({
     patient_dni: "",
     patient_name: "",
+    patient_email: "",
     study_date: new Date().toISOString().split("T")[0],
     doctor_id: "",
   });
@@ -255,6 +256,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
         doctor_id: formData.doctor_id,
         patient_dni: formData.patient_dni,
         patient_name: formData.patient_name,
+        patient_email: formData.patient_email,
         study_name: `${selectedCategory} - ${selectedStudyType}`,
         study_date: formData.study_date,
         file_key: file_key,
@@ -288,11 +290,30 @@ const UploadForm = ({ onSuccess, onClose }) => {
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-2 shadow-inner">
           <Check size={40} className="text-green-600 animate-bounce" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-800">¡Estudio Subido!</h3>
+        <h3 className="text-2xl font-bold text-gray-800">
+          ¡Estudio Subido Exitosamente!
+        </h3>
         <p className="text-gray-500 text-center">
-          El archivo se ha guardado correctamente y el doctor ya puede
-          visualizarlo.
+          El archivo se ha guardado correctamente y el paciente ha sido
+          notificado.
         </p>
+        {formData.patient_email && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 w-full max-w-md text-sm">
+            <p className="text-blue-700">
+              ✓ Email de notificación enviado a:{" "}
+              <strong>{formData.patient_email}</strong>
+            </p>
+          </div>
+        )}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 w-full max-w-md text-sm mt-4">
+          <p className="text-gray-700 font-semibold mb-2">
+            Para que el paciente acceda a sus estudios:
+          </p>
+          <p className="text-gray-600">
+            El paciente puede ingresar en: <strong>Portal del Paciente</strong>{" "}
+            con su DNI como usuario y contraseña.
+          </p>
+        </div>
       </div>
     );
   }
@@ -354,6 +375,23 @@ const UploadForm = ({ onSuccess, onClose }) => {
               setFormData({ ...formData, patient_name: e.target.value })
             }
           />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+            Email Paciente
+          </label>
+          <input
+            type="email"
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            placeholder="correo@ejemplo.com"
+            value={formData.patient_email}
+            onChange={(e) =>
+              setFormData({ ...formData, patient_email: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Opcional: para notificaciones por correo
+          </p>
         </div>
       </div>
 

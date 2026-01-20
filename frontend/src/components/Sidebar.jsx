@@ -7,8 +7,12 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import NotificationBell from "./NotificationBell";
 
 export default function Sidebar({ onLogout }) {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isDoctorOrAdmin = user.role === "doctor" || user.role === "admin";
+
   // Clases para los enlaces
   const baseClass =
     "flex items-center gap-4 px-6 py-4 text-sm font-medium transition-all duration-300 relative";
@@ -73,8 +77,11 @@ export default function Sidebar({ onLogout }) {
         </button>
       </nav>
 
+      {/* Información del Usuario y Notificaciones */}
+      <div className="border-t border-blue-500"></div>
+
       {/* Botón Salir */}
-      <div className="p-6">
+      <div className="p-6 border-t border-blue-500">
         <button
           onClick={onLogout}
           className="flex items-center gap-3 text-blue-100 hover:text-white hover:bg-white/10 w-full px-4 py-3 rounded-xl transition-all"

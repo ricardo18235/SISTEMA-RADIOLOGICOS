@@ -20,8 +20,8 @@ import {
   Calendar,
 } from "lucide-react";
 import UploadForm from "../components/UploadForm";
-// 1. IMPORTAMOS EL NUEVO MODAL
 import PatientHistoryModal from "../components/PatientHistoryModal";
+import NotificationBell from "../components/NotificationBell";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState(null);
@@ -74,10 +74,7 @@ export default function DashboardHome() {
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-full shadow-sm px-4">
-          <button className="text-gray-400 hover:text-blue-600 relative p-1">
-            <Bell size={20} />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          <NotificationBell />
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>

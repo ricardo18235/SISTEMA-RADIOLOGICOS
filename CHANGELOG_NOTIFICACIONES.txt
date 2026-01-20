@@ -1,0 +1,90 @@
+CHANGELOG - Sistema de Notificaciones Actualizado
+=================================================
+
+## CAMBIOS REALIZADOS
+
+### 1. Backend - Nuevos Endpoints
+
+#### patient_login.php
+- Endpoint: POST /backend/patient_login.php
+- Parámetros: { dni, password }
+- Retorna: token JWT + datos del paciente
+- Nota: Por defecto la contraseña del paciente es su DNI
+
+#### patient_studies.php
+- Endpoint: GET /backend/patient_studies.php
+- Headers: Authorization: Bearer {token}
+- Retorna: Lista de estudios del paciente autenticado
+- Campos: id, study_name, file_url, file_type, study_date
+
+### 2. Frontend - Nuevas Páginas
+
+#### PatientLogin.jsx (/patient-login)
+- Formulario de login para pacientes
+- Campos: DNI y Contraseña
+- Genera JWT y guarda en localStorage
+- Redirige a /patient-studies después del login
+
+#### PatientStudies.jsx (/patient-studies)
+- Panel de estudios del paciente
+- Muestra todos los estudios subidos
+- Permite: Ver (visor) y Descargar archivos
+- Auto-logout si no hay token válido
+
+### 3. Cambios en Componentes Existentes
+
+#### UploadForm.jsx
+- Agregado campo: "Email Paciente" (opcional)
+- El email se envía a backend y se guarda en BD
+- Mensaje de éxito mejorado mostrando email notificado
+
+#### App.jsx
+- Nuevas rutas:
+  - /patient-login → PatientLogin
+  - /patient-studies → PatientStudies
+- Importaciones actualizadas
+
+### 4. Cambios en Backend
+
+#### register_study.php
+- Ahora acepta: patient_email como parámetro
+- Guarda email en tabla patients
+- Mejora en logging de errores de notificaciones
+
+#### composer.json
+- Removido: "phpmailer/phpmailer": "^6.9"
+- Mantiene: aws-sdk-php y php-jwt
+
+#### mail_config.php
+- Sistema migrado a PHP mail() nativa
+- Eliminadas dependencias de PHPMailer
+- Compatible con cualquier hosting (Hostinger, etc)
+- Email headers correctamente formateados
+
+---
+
+## FLUJO COMPLETO
+
+### Para Pacientes:
+1. Doctor sube estudio e ingresa email del paciente
+2. Paciente recibe correo de notificación
+3. Paciente accede a /patient-login
+4. Usa DNI y contraseña para ingresar
+5. Ve todos sus estudios en /patient-studies
+6. Puede visualizar y descargar estudios
+
+### Para Doctores:
+1. Sube estudio del paciente
+2. Notificación aparece en campana (🔔)
+3. Notificación en BD se marca como leída al hacer click
+4. Recibe email de confirmación (si tiene email en sistema)
+
+---
+
+## NOTAS IMPORTANTES
+
+- Contraseña inicial paciente = su DNI (cambiable en patient_login.php)
+- Email del paciente es OPCIONAL para subir estudio
+- Notificaciones in-app funcionan sin email
+- Sistema funciona en localhost y Hostinger sin cambios
+
