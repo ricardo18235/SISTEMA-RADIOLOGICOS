@@ -47,14 +47,14 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-blue-50 to-blue-100">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl animate-fade-in-up">
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30">
             <Activity className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Bienvenido</h1>
+          s<h1 className="text-2xl font-bold text-gray-800">Bienvenido</h1>
           <p className="text-gray-500 text-sm">
             Sistema de Gestión Radiológica
           </p>

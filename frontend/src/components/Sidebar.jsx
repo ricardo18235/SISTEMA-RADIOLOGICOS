@@ -5,6 +5,11 @@ import {
   LogOut,
   Settings,
   HelpCircle,
+  Phone,
+  Mail,
+  Facebook,
+  Twitter,
+  Instagram,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
@@ -79,6 +84,51 @@ export default function Sidebar({ onLogout }) {
 
       {/* Información del Usuario y Notificaciones */}
       <div className="border-t border-blue-500"></div>
+
+      {/* Información de Contacto y Redes Sociales */}
+      <div className="px-6 py-4 border-t border-blue-500">
+        <div className="space-y-3">
+          {/* Teléfono */}
+          <div className="flex items-center gap-3 text-blue-100">
+            <Phone size={16} />
+            <span className="text-sm">+1 (555) 123-4567</span>
+          </div>
+
+          {/* Email */}
+          <div className="flex items-center gap-3 text-blue-100">
+            <Mail size={16} />
+            <span className="text-sm">info@radiologiaapp.com</span>
+          </div>
+
+          {/* Redes Sociales */}
+          <div className="flex gap-3 pt-2">
+            <a
+              href="https://facebook.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-100 hover:text-white transition-colors"
+            >
+              <Facebook size={18} />
+            </a>
+            <a
+              href="https://twitter.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-100 hover:text-white transition-colors"
+            >
+              <Twitter size={18} />
+            </a>
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-100 hover:text-white transition-colors"
+            >
+              <Instagram size={18} />
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* Botón Salir */}
       <div className="p-6 border-t border-blue-500">
