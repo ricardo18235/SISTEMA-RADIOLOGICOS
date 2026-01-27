@@ -12,7 +12,7 @@ import {
   Instagram,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import NotificationBell from "./NotificationBell";
+
 
 export default function Sidebar({ onLogout }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");

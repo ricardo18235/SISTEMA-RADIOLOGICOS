@@ -12,7 +12,6 @@ import {
   Cell,
 } from "recharts";
 import {
-  Bell,
   UploadCloud,
   Users,
   FileImage,
@@ -21,15 +20,15 @@ import {
 } from "lucide-react";
 import UploadForm from "../components/UploadForm";
 import PatientHistoryModal from "../components/PatientHistoryModal";
-import NotificationBell from "../components/NotificationBell";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState(null);
+  const [chartReady, setChartReady] = useState(false);
 
   // Estado para el modal de subir archivo
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // 2. NUEVO ESTADO PARA EL MODAL DE HISTORIAL
+  // Estado para el modal de historial
   const [selectedPatientDni, setSelectedPatientDni] = useState(null);
 
   // Obtener datos del usuario
@@ -54,6 +53,14 @@ export default function DashboardHome() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    if (stats) {
+      // Pequeño retardo para asegurar que el DOM esté listo antes de renderizar gráficas
+      const timer = setTimeout(() => setChartReady(true), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [stats]);
+
   if (!stats) {
     return (
       <div className="flex items-center justify-center h-screen text-blue-600 font-medium animate-pulse">
@@ -74,7 +81,6 @@ export default function DashboardHome() {
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-full shadow-sm px-4">
-          <NotificationBell />
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>
@@ -161,50 +167,52 @@ export default function DashboardHome() {
             </span>
           </div>
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.weekly_activity}>
-                <defs>
-                  <linearGradient
-                    id="colorEstudios"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="5%" stopColor="#4318FF" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#4318FF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#A3AED0", fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#A3AED0", fontSize: 12 }}
-                  allowDecimals={false}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="estudios"
-                  stroke="#4318FF"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorEstudios)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartReady && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={300}>
+                <AreaChart data={stats.weekly_activity}>
+                  <defs>
+                    <linearGradient
+                      id="colorEstudios"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#4318FF" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#4318FF" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#A3AED0", fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#A3AED0", fontSize: 12 }}
+                    allowDecimals={false}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "none",
+                      boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="estudios"
+                    stroke="#4318FF"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorEstudios)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -213,28 +221,30 @@ export default function DashboardHome() {
           <h3 className="font-bold text-lg text-slate-800 mb-2">
             Categorías de Estudios
           </h3>
-          <div className="h-60 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.by_type}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="count"
-                >
-                  {stats.by_type.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <RechartsTooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-60 relative w-full">
+            {chartReady && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={300}>
+                <PieChart>
+                  <Pie
+                    data={stats.by_type}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="count"
+                  >
+                    {stats.by_type.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
 
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xs text-gray-400">Total</span>
