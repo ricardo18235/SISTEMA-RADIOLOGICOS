@@ -17,14 +17,21 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+
+
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
-  const [filteredDoctors, setFilteredDoctors] = useState([]);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+
+  // Paginación y Búsqueda
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
+
   const [notification, setNotification] = useState(null);
-  const [doctorToDelete, setDoctorToDelete] = useState(null); // Estado para modal de confirmación
+  const [doctorToDelete, setDoctorToDelete] = useState(null);
 
   // Obtener datos del usuario
   const userStr = localStorage.getItem("user");
@@ -33,12 +40,16 @@ export default function Doctors() {
     : { name: "Usuario", id: null, role: "guest" };
   const userName = user.name || "Administrador";
 
-  const fetchDoctors = async () => {
+  const fetchDoctors = async (currentPage, search) => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost/backend/get_doctors.php");
-      setDoctors(res.data);
-      setFilteredDoctors(res.data);
+      // Usamos el parametro 'limit' para activar el modo paginación en el backend
+      const res = await axios.get(`http://localhost/backend/get_doctors.php?page=${currentPage}&limit=${limit}&search=${search}`);
+
+      // El backend retorna { data: [...], pagination: {...} } en modo paginado
+      setDoctors(res.data.data);
+      setTotalPages(res.data.pagination.pages);
+      setPage(res.data.pagination.page);
     } catch (error) {
       console.error("Error cargando doctores:", error);
       showNotification("Error al cargar doctores", "error");
@@ -47,24 +58,22 @@ export default function Doctors() {
     }
   };
 
+  // Debounce para búsqueda
   useEffect(() => {
-    fetchDoctors();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      setPage(1);
+      fetchDoctors(1, searchTerm);
+    }, 500);
 
-  // Filtrar doctores según búsqueda
-  useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredDoctors(doctors);
-    } else {
-      const filtered = doctors.filter(
-        (doctor) =>
-          doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (doctor.email &&
-            doctor.email.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredDoctors(filtered);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      fetchDoctors(newPage, searchTerm);
     }
-  }, [searchTerm, doctors]);
+  };
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -87,7 +96,7 @@ export default function Doctors() {
         showNotification("✅ Doctor creado correctamente", "success");
       }
       setForm({ name: "", email: "", password: "" });
-      fetchDoctors();
+      fetchDoctors(page, searchTerm);
     } catch (error) {
       showNotification(
         "❌ Error: " + (error.response?.data?.error || "Desconocido"),
@@ -107,7 +116,7 @@ export default function Doctors() {
   };
 
   const handleDelete = (id) => {
-    setDoctorToDelete(id); // Abre el modal
+    setDoctorToDelete(id);
   };
 
   const confirmDelete = async () => {
@@ -118,24 +127,13 @@ export default function Doctors() {
         requester_role: user.role
       });
       showNotification("🗑️ Doctor eliminado", "success");
-      fetchDoctors();
+      fetchDoctors(page, searchTerm);
     } catch (error) {
       showNotification("Error al eliminar", "error");
     } finally {
-      setDoctorToDelete(null); // Cierra el modal
+      setDoctorToDelete(null);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-blue-600 font-medium animate-pulse">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span>Cargando Doctores...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 pb-10">
@@ -178,39 +176,6 @@ export default function Doctors() {
           </div>
         </div>
       </header>
-
-      {/* --- ESTADÍSTICAS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
-          <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Users className="text-blue-600" size={24} />
-          </div>
-          <p className="text-sm text-gray-500 font-medium">Total Doctores</p>
-          <h3 className="text-3xl font-bold text-blue-600 mt-2">
-            {doctors.length}
-          </h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckCircle className="text-green-600" size={24} />
-          </div>
-          <p className="text-sm text-gray-500 font-medium">Activos</p>
-          <h3 className="text-3xl font-bold text-green-600 mt-2">
-            {doctors.length}
-          </h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
-          <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Activity className="text-purple-600" size={24} />
-          </div>
-          <p className="text-sm text-gray-500 font-medium">Resultados</p>
-          <h3 className="text-3xl font-bold text-purple-600 mt-2">
-            {filteredDoctors.length}
-          </h3>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* --- FORMULARIO DE CREACIÓN MEJORADO --- */}
@@ -292,23 +257,33 @@ export default function Doctors() {
         </div>
 
         {/* --- TABLA DE DOCTORES MEJORADA --- */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-              <Shield className="text-purple-600" size={24} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-800">
-                Doctores Registrados
-              </h3>
-              <p className="text-sm text-gray-500">
-                {filteredDoctors.length} profesionales en el sistema
-              </p>
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative flex flex-col">
+          {/* Header de la tarjeta */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <Shield className="text-purple-600" size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Doctores Registrados
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Gestiona los profesionales del sistema
+                </p>
+              </div>
             </div>
           </div>
 
-          {filteredDoctors.length === 0 ? (
-            <div className="p-12 text-center">
+          {/* Estado de Carga */}
+          {loading && (
+            <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+
+          {doctors.length === 0 && !loading ? (
+            <div className="p-12 text-center flex-1">
               <Users className="mx-auto mb-4 opacity-20" size={48} />
               <p className="text-gray-400 font-medium">
                 {searchTerm
@@ -317,68 +292,93 @@ export default function Doctors() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-gray-600 text-sm border-b border-gray-100">
-                    <th className="px-6 py-4 font-bold">DOCTOR</th>
-                    <th className="px-6 py-4 font-bold">CORREO</th>
-                    <th className="px-6 py-4 font-bold text-center">PACIENTES</th>
-                    {(user.role === 'admin') && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {filteredDoctors.map((doc) => (
-                    <tr
-                      key={doc.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
-                            {doc.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800">
-                              Dr. {doc.name.toUpperCase()}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <Mail size={14} className="text-gray-400" />
-                          {doc.email || "Sin correo"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full text-sm font-bold border border-blue-100">
-                          {doc.patient_count || 0}
-                        </span>
-                      </td>
-                      {(user.role === 'admin') && (
-                        <td className="px-6 py-4 flex justify-end gap-2">
-                          <button
-                            onClick={() => handleEdit(doc)}
-                            className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(doc.id)}
-                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      )}
+            <>
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-gray-600 text-sm border-b border-gray-100">
+                      <th className="px-6 py-4 font-bold">DOCTOR</th>
+                      <th className="px-6 py-4 font-bold">CORREO</th>
+                      <th className="px-6 py-4 font-bold text-center">PACIENTES</th>
+                      {(user.role === 'admin') && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="text-sm">
+                    {doctors.map((doc) => (
+                      <tr
+                        key={doc.id}
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
+                              {doc.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-800">
+                                Dr. {doc.name.toUpperCase()}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Mail size={14} className="text-gray-400" />
+                            {doc.email || "Sin correo"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full text-sm font-bold border border-blue-100">
+                            {doc.patient_count || 0}
+                          </span>
+                        </td>
+                        {(user.role === 'admin') && (
+                          <td className="px-6 py-4 flex justify-end gap-2">
+                            <button
+                              onClick={() => handleEdit(doc)}
+                              className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(doc.id)}
+                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* --- PAGINACIÓN --- */}
+              <div className="flex justify-between items-center p-4 border-t border-gray-100 bg-gray-50/50">
+                <div className="text-sm text-gray-500">
+                  Página {page} de {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page === 1}
+                    className="px-4 py-2 text-sm font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page === totalPages}
+                    className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-600/20"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
