@@ -6,9 +6,15 @@ import EditPatientModal from "../components/EditPatientModal";
 
 export default function Patients() {
   const [patients, setPatients] = useState([]);
-  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [stats, setStats] = useState({ total_patients: 0, total_studies: 0, current_month_studies: 0 });
   const [loading, setLoading] = useState(true);
+
+  // Paginación y Búsqueda
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 10;
+
   const [selectedPatientDni, setSelectedPatientDni] = useState(null);
 
   // Estados para Edición/Eliminación
@@ -22,12 +28,18 @@ export default function Patients() {
     : { name: "Usuario", id: null, role: "guest" };
   const userName = user.name || "Doctor";
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (currentPage, search) => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost/backend/get_patients.php");
-      setPatients(res.data);
-      setFilteredPatients(res.data);
+      const res = await axios.get(`http://localhost/backend/get_patients.php?page=${currentPage}&limit=${limit}&search=${search}`);
+      setPatients(res.data.data);
+      if (res.data.stats) {
+        setStats(res.data.stats);
+      }
+      if (res.data.pagination) {
+        setTotalPages(res.data.pagination.pages);
+        setPage(res.data.pagination.page);
+      }
     } catch (error) {
       console.error("Error cargando pacientes:", error);
     } finally {
@@ -35,24 +47,23 @@ export default function Patients() {
     }
   };
 
+  // Debounce para búsqueda
   useEffect(() => {
-    fetchPatients();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      setPage(1); // Reset a primera página al buscar
+      fetchPatients(1, searchTerm);
+    }, 500);
 
-  // Filtrar pacientes según búsqueda
-  useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredPatients(patients);
-    } else {
-      const filtered = patients.filter(
-        (patient) =>
-          patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          patient.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (patient.doctor_name && patient.doctor_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredPatients(filtered);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  // Cambio de página
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      fetchPatients(newPage, searchTerm);
     }
-  }, [searchTerm, patients]);
+  };
 
   const handleDelete = (id) => {
     setPatientToDelete(id);
@@ -65,7 +76,7 @@ export default function Patients() {
         id: patientToDelete,
         requester_role: user.role
       });
-      fetchPatients();
+      fetchPatients(page, searchTerm);
     } catch (error) {
       console.error(error);
       alert("Error al eliminar paciente. Es posible que tenga estudios asociados.");
@@ -74,23 +85,12 @@ export default function Patients() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-blue-600 font-medium animate-pulse">
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span>Cargando Pacientes...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8 pb-10">
       {/* --- HEADER CON BÚSQUEDA --- */}
       <header className="flex justify-between items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl sticky top-0 z-10 border border-white/20">
         <div>
-          <p className="text-sm text-gray-500">Pacientes</p>
+          <p className="text-sm text-gray-500">Gestión de Pacientes</p>
           <h2 className="text-2xl font-bold text-slate-800">{userName}</h2>
         </div>
 
@@ -99,7 +99,7 @@ export default function Patients() {
             <Search size={18} />
             <input
               type="text"
-              placeholder="Buscar por nombre o DNI..."
+              placeholder="Buscar por nombre, DNI o doctor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-transparent outline-none text-sm w-64"
@@ -115,9 +115,37 @@ export default function Patients() {
         </div>
       </header>
 
+      {/* --- ESTADÍSTICAS RÁPIDAS (MOVIDAS ARRIBA) --- */}
+      <div className="grid grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
+          <p className="text-gray-500 text-sm font-medium">Total Pacientes</p>
+          <h3 className="text-3xl font-bold text-blue-600 mt-2">
+            {stats.total_patients}
+          </h3>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
+          <p className="text-gray-500 text-sm font-medium">Total Estudios</p>
+          <h3 className="text-3xl font-bold text-purple-600 mt-2">
+            {stats.total_studies}
+          </h3>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center transition-transform hover:scale-[1.02]">
+          <p className="text-gray-500 text-sm font-medium">Este Mes</p>
+          <h3 className="text-3xl font-bold text-green-600 mt-2">
+            {stats.current_month_studies}
+          </h3>
+        </div>
+      </div>
+
       {/* --- TABLA DE PACIENTES --- */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {filteredPatients.length === 0 ? (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+
+        {patients.length === 0 && !loading ? (
           <div className="p-12 text-center">
             <Users className="mx-auto mb-4 opacity-20" size={48} />
             <p className="text-gray-400 font-medium">
@@ -127,7 +155,7 @@ export default function Patients() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 text-left text-gray-600 text-sm border-b border-gray-100">
@@ -140,7 +168,7 @@ export default function Patients() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredPatients.map((patient, index) => (
+                {patients.map((patient, index) => (
                   <tr
                     key={index}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -156,7 +184,7 @@ export default function Patients() {
                           </p>
                           {patient.doctor_name && (
                             <p className="text-xs text-gray-500">
-                              Dr. {patient.doctor_name}
+                              Dr. {patient.doctor_name.toUpperCase()}
                             </p>
                           )}
                         </div>
@@ -209,48 +237,44 @@ export default function Patients() {
             </table>
           </div>
         )}
+
+        {/* --- PAGINACIÓN --- */}
+        <div className="flex justify-between items-center p-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="text-sm text-gray-500">
+            Página {page} de {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 1}
+              className="px-4 py-2 text-sm font-medium bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page === totalPages}
+              className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-600/20"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* --- ESTADÍSTICAS RÁPIDAS --- */}
-      <div className="grid grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-          <p className="text-gray-500 text-sm font-medium">Total Pacientes</p>
-          <h3 className="text-3xl font-bold text-blue-600 mt-2">
-            {patients.length}
-          </h3>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-          <p className="text-gray-500 text-sm font-medium">Resultados</p>
-          <h3 className="text-3xl font-bold text-purple-600 mt-2">
-            {filteredPatients.length}
-          </h3>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-          <p className="text-gray-500 text-sm font-medium">Total Estudios</p>
-          <h3 className="text-3xl font-bold text-green-600 mt-2">
-            {patients.reduce((sum, p) => sum + parseInt(p.studies_count || 0), 0)}
-          </h3>
-        </div>
-      </div>
-
-      {/* MODAL DE HISTORIAL */}
       {selectedPatientDni && (
         <PatientHistoryModal
           dni={selectedPatientDni}
           onClose={() => setSelectedPatientDni(null)}
         />
       )}
-
-      {/* MODAL DE EDICIÓN */}
       {editingPatient && (
         <EditPatientModal
           patient={editingPatient}
           onClose={() => setEditingPatient(null)}
-          onSuccess={fetchPatients}
+          onSuccess={() => fetchPatients(page, searchTerm)}
         />
       )}
-
-      {/* CONFIRMACIÓN ELIMINAR */}
       {patientToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 animate-fade-in-up">

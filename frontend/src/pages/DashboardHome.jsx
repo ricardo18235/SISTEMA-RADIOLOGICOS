@@ -279,7 +279,7 @@ export default function DashboardHome() {
       {/* --- TABLA RECIENTES --- */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h3 className="font-bold text-lg text-slate-800 mb-4">
-          Pacientes Recientes
+          Pacientes Recientes (Últimos 5)
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">

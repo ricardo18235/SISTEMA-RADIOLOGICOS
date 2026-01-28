@@ -211,7 +211,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
 
   const selectDoctor = (doc) => {
     setFormData({ ...formData, doctor_id: doc.id });
-    setDoctorSearch(doc.name);
+    setDoctorSearch(doc.name.toUpperCase());
     setDoctorSelectedValid(true);
     setShowSuggestions(false);
   };
@@ -499,7 +499,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs">
                     {doc.name.charAt(0)}
                   </div>
-                  <span className="font-medium text-gray-700">{doc.name}</span>
+                  <span className="font-medium text-gray-700">{doc.name.toUpperCase()}</span>
                 </div>
               ))
             ) : (
