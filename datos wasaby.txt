@@ -1,0 +1,33 @@
+login:
+
+email: ricardo.store.55@gmail.com
+password: Chegoyo@2024
+
+
+bucket:
+radio-sistema-archivos-2026
+
+region: us-east-1
+
+--------------
+
+luiego ir a s3.php y colocar los datos:
+
+'version' => 'latest',
+    'region'  => 'us-east-1',
+    'endpoint' => 'https://s3.us-east-1.wasabisys.com',
+    'credentials' => [
+        'key'    => 'FGXGBKFPVU43BZN17G01',       // Tu Access Key
+        'secret' => 'idT1JB6ul0qs5UZe2rkhiT1DDNiBMpiJmbzkkIoa', // Tu Secret Key
+    ],
+
+en register_study.php se debe cambiar y colocar el nombre del bucket y el servidor donde esta
+ejemplo:
+
+ $bucketName = 'radio-sistema-archivos-2026'; // Pon tu bucket aquí manual o impórtalo
+    $fileUrl = "https://s3.us-east-1.wasabisys.com/"
+
+
+
+
+

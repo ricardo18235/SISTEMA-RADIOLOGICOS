@@ -8,7 +8,8 @@ header('Content-Type: application/json');
 $input = json_decode(file_get_contents("php://input"));
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$input) {
-    http_response_code(400); exit;
+    http_response_code(400);
+    exit;
 }
 
 // 1. Validación de Seguridad
@@ -31,7 +32,7 @@ try {
     $fileTypeRaw = $input->file_type_raw; // Mime type o extensión
 
     // Construir URL Base (Referencial)
-    $bucketName = 'radio-sistema-archivos-2025'; // Pon tu bucket aquí manual o impórtalo
+    $bucketName = 'radio-sistema-archivos-2026'; // Pon tu bucket aquí manual o impórtalo
     $fileUrl = "https://s3.us-east-1.wasabisys.com/" . $bucketName . "/" . $fileKey;
 
     // 2. Buscar o Crear Paciente
@@ -57,10 +58,14 @@ try {
     // 3. Determinar tipo de archivo para la BD
     $ext = strtolower(pathinfo($fileKey, PATHINFO_EXTENSION));
     $type = 'image';
-    if (in_array($ext, ['dcm', 'dicom'])) $type = 'dicom';
-    if (in_array($ext, ['stl', 'ply'])) $type = '3d_scan';
-    if ($ext === 'pdf') $type = 'pdf';
-    if (in_array($ext, ['zip', 'rar'])) $type = 'tomography';
+    if (in_array($ext, ['dcm', 'dicom']))
+        $type = 'dicom';
+    if (in_array($ext, ['stl', 'ply']))
+        $type = '3d_scan';
+    if ($ext === 'pdf')
+        $type = 'pdf';
+    if (in_array($ext, ['zip', 'rar']))
+        $type = 'tomography';
 
     // 4. Insertar Estudio
     $stmt = $pdo->prepare("INSERT INTO studies (patient_id, doctor_id, study_name, file_url, file_type, study_date, file_size) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -79,7 +84,7 @@ try {
          VALUES (?, ?, ?, ?, FALSE, NOW())"
     );
     $result = $stmt->execute([$doctorId, $patientId, $studyId, $notificationMessage]);
-    
+
     if (!$result) {
         error_log("Error creando notificación: " . json_encode($stmt->errorInfo()));
     }
