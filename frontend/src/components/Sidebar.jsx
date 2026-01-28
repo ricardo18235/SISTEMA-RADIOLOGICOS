@@ -89,15 +89,15 @@ export default function Sidebar({ onLogout }) {
       <div className="px-6 py-4 border-t border-blue-500">
         <div className="space-y-3">
           {/* Teléfono */}
-          <div className="flex items-center gap-3 text-blue-100">
+          <a href="tel:+573166132507" className="flex items-center gap-3 text-blue-100 hover:text-white transition-colors">
             <Phone size={16} />
-            <span className="text-sm">+1 (555) 123-4567</span>
-          </div>
+            <span className="text-sm">+57 316 613 2507</span>
+          </a>
 
           {/* Email */}
           <div className="flex items-center gap-3 text-blue-100">
             <Mail size={16} />
-            <span className="text-sm">info@radiologiaapp.com</span>
+            <span className="text-sm">rxoralunicentro@gmail.com</span>
           </div>
 
           {/* Redes Sociales */}
