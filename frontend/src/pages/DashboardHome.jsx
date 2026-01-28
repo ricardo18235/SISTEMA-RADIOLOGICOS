@@ -347,7 +347,7 @@ function StatCard({ title, value, icon, bgIcon, trend }) {
       </div>
       <div>
         <p className="text-sm text-gray-400 font-medium">{title}</p>
-        <h4 className="text-2xl font-bold text-slate-800 mt-1">{value}</h4>
+        <h4 className="text-2xl font-bold text-slate-800 mt-1 ">{value}</h4>
         <p className="text-xs text-green-500 font-medium mt-1">{trend}</p>
       </div>
     </div>

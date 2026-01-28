@@ -25,6 +25,7 @@ try {
     $patientDni = $input->patient_dni;
     $patientName = $input->patient_name;
     $patientEmail = $input->patient_email ?? null; // Puede venir del frontend
+    $patientPhone = $input->patient_phone ?? null; // Obtener teléfono
     $studyName = $input->study_name;
     $studyDate = $input->study_date;
     $fileKey = $input->file_key;     // Ruta en Wasabi (estudios/xyz.jpg)
@@ -36,22 +37,42 @@ try {
     $fileUrl = "https://s3.us-east-1.wasabisys.com/" . $bucketName . "/" . $fileKey;
 
     // 2. Buscar o Crear Paciente
-    $stmt = $pdo->prepare("SELECT id, email FROM patients WHERE dni = ? AND doctor_id = ?");
+    // Nota: Se asume que la columna 'phone' ya existe en la BD o se ignorará si no está en el fetch
+    $stmt = $pdo->prepare("SELECT id, email, phone FROM patients WHERE dni = ? AND doctor_id = ?"); // Added 'phone' to SELECT
     $stmt->execute([$patientDni, $doctorId]);
     $patient = $stmt->fetch();
 
     if ($patient) {
         $patientId = $patient['id'];
-        // Usar email existente o el nuevo si fue proporcionado
-        if ($patientEmail && !$patient['email']) {
-            $stmt = $pdo->prepare("UPDATE patients SET email = ? WHERE id = ?");
-            $stmt->execute([$patientEmail, $patientId]);
+
+        // Actualizar email o teléfono si faltan
+        $updates = [];
+        $params = [];
+
+        if ($patientEmail && (!$patient['email'] || $patient['email'] !== $patientEmail)) { // Check if email is different or missing
+            $updates[] = "email = ?";
+            $params[] = $patientEmail;
         } elseif ($patient['email']) {
-            $patientEmail = $patient['email'];
+            $patientEmail = $patient['email']; // Use existing email if not updated
         }
+
+        // Si tuvieramos el teléfono en el SELECT podríamos validar si falta
+        // Por ahora, intentaremos actualizar el teléfono si viene en el request
+        if ($patientPhone && (!$patient['phone'] || $patient['phone'] !== $patientPhone)) { // Check if phone is different or missing
+            $updates[] = "phone = ?";
+            $params[] = $patientPhone;
+        }
+
+        if (!empty($updates)) {
+            $params[] = $patientId;
+            $sql = "UPDATE patients SET " . implode(", ", $updates) . " WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        }
+
     } else {
-        $stmt = $pdo->prepare("INSERT INTO patients (doctor_id, dni, name, email) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$doctorId, $patientDni, $patientName, $patientEmail]);
+        $stmt = $pdo->prepare("INSERT INTO patients (doctor_id, dni, name, email, phone) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$doctorId, $patientDni, $patientName, $patientEmail, $patientPhone]);
         $patientId = $pdo->lastInsertId();
     }
 

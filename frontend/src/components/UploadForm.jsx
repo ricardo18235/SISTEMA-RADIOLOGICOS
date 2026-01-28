@@ -114,6 +114,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
     patient_dni: "",
     patient_name: "",
     patient_email: "",
+    patient_phone: "",
     study_date: new Date().toISOString().split("T")[0],
     doctor_id: "",
   });
@@ -257,6 +258,7 @@ const UploadForm = ({ onSuccess, onClose }) => {
         patient_dni: formData.patient_dni,
         patient_name: formData.patient_name,
         patient_email: formData.patient_email,
+        patient_phone: formData.patient_phone,
         study_name: `${selectedCategory} - ${selectedStudyType}`,
         study_date: formData.study_date,
         file_key: file_key,
@@ -350,16 +352,47 @@ const UploadForm = ({ onSuccess, onClose }) => {
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
             Documento Paciente
           </label>
-          <input
-            type="text"
-            required
-            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
-            placeholder="Ej: 12345678"
-            value={formData.patient_dni}
-            onChange={(e) =>
-              setFormData({ ...formData, patient_dni: e.target.value })
-            }
-          />
+          <div className="relative">
+            <input
+              type="text"
+              required
+              className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+              placeholder="Ej: 12345678"
+              value={formData.patient_dni}
+              onChange={(e) =>
+                setFormData({ ...formData, patient_dni: e.target.value })
+              }
+              onBlur={async () => {
+                if (formData.patient_dni.length < 3) return;
+                const feedbackEl = document.getElementById("dni-feedback");
+                if (feedbackEl) { feedbackEl.innerText = "🔍 Buscando..."; feedbackEl.className = "text-xs text-blue-500 absolute right-0 -bottom-5"; }
+
+                try {
+                  console.log("Searching for DNI:", formData.patient_dni);
+                  const res = await axios.get(
+                    `http://localhost/backend/search_patient.php?dni=${formData.patient_dni}`
+                  );
+                  console.log("Search result:", res.data);
+
+                  if (res.data) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      patient_name: res.data.name,
+                      patient_email: res.data.email || "",
+                      patient_phone: res.data.phone || "",
+                    }));
+                    if (feedbackEl) { feedbackEl.innerText = "✅ Paciente encontrado"; feedbackEl.className = "text-xs text-green-600 font-bold absolute right-0 -bottom-5"; }
+                  } else {
+                    if (feedbackEl) { feedbackEl.innerText = ""; }
+                  }
+                } catch (err) {
+                  console.error("Error buscando paciente", err);
+                  if (feedbackEl) { feedbackEl.innerText = "❌ Error al buscar"; feedbackEl.className = "text-xs text-red-500 absolute right-0 -bottom-5"; }
+                }
+              }}
+            />
+            <div id="dni-feedback" className="absolute right-0 -bottom-5 text-xs"></div>
+          </div>
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
@@ -393,6 +426,23 @@ const UploadForm = ({ onSuccess, onClose }) => {
             Opcional: para notificaciones por correo
           </p>
         </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+            Teléfono Paciente
+          </label>
+          <input
+            type="tel"
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            placeholder="Ej: 5544332211"
+            value={formData.patient_phone}
+            onChange={(e) =>
+              setFormData({ ...formData, patient_phone: e.target.value })
+            }
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Opcional: para contacto
+          </p>
+        </div>
       </div>
 
       {/* 2. Asignar Doctor */}
@@ -407,19 +457,17 @@ const UploadForm = ({ onSuccess, onClose }) => {
         </label>
         <div className="relative group">
           <User
-            className={`absolute left-3 top-3 transition-colors ${
-              doctorSelectedValid ? "text-green-500" : "text-gray-400"
-            }`}
+            className={`absolute left-3 top-3 transition-colors ${doctorSelectedValid ? "text-green-500" : "text-gray-400"
+              }`}
             size={18}
           />
           <input
             type="text"
             required
-            className={`w-full pl-10 p-2.5 bg-gray-50 border rounded-lg focus:ring-2 outline-none transition-all ${
-              doctorSelectedValid
-                ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-500"
-                : "border-gray-200 focus:ring-blue-500"
-            }`}
+            className={`w-full pl-10 p-2.5 bg-gray-50 border rounded-lg focus:ring-2 outline-none transition-all ${doctorSelectedValid
+              ? "border-green-400 bg-green-50 text-green-800 focus:ring-green-500"
+              : "border-gray-200 focus:ring-blue-500"
+              }`}
             placeholder="Escribe para buscar..."
             value={doctorSearch}
             onChange={handleDoctorSearchChange}

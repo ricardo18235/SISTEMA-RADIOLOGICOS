@@ -12,6 +12,9 @@ import {
   Activity,
   CheckCircle,
   Calendar,
+  Edit,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function Doctors() {
@@ -21,6 +24,7 @@ export default function Doctors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  const [doctorToDelete, setDoctorToDelete] = useState(null); // Estado para modal de confirmación
 
   // Obtener datos del usuario
   const userStr = localStorage.getItem("user");
@@ -70,8 +74,18 @@ export default function Doctors() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost/backend/create_doctor.php", form);
-      showNotification("✅ Doctor creado correctamente", "success");
+      if (form.id) {
+        // Modo Edición
+        await axios.post("http://localhost/backend/edit_doctor.php", {
+          ...form,
+          requester_role: user.role
+        });
+        showNotification("✅ Doctor actualizado correctamente", "success");
+      } else {
+        // Modo Creación
+        await axios.post("http://localhost/backend/create_doctor.php", form);
+        showNotification("✅ Doctor creado correctamente", "success");
+      }
       setForm({ name: "", email: "", password: "" });
       fetchDoctors();
     } catch (error) {
@@ -79,6 +93,36 @@ export default function Doctors() {
         "❌ Error: " + (error.response?.data?.error || "Desconocido"),
         "error"
       );
+    }
+  };
+
+  const handleEdit = (doctor) => {
+    setForm({
+      id: doctor.id,
+      name: doctor.name,
+      email: doctor.email || "",
+      password: ""
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = (id) => {
+    setDoctorToDelete(id); // Abre el modal
+  };
+
+  const confirmDelete = async () => {
+    if (!doctorToDelete) return;
+    try {
+      await axios.post("http://localhost/backend/delete_doctor.php", {
+        id: doctorToDelete,
+        requester_role: user.role
+      });
+      showNotification("🗑️ Doctor eliminado", "success");
+      fetchDoctors();
+    } catch (error) {
+      showNotification("Error al eliminar", "error");
+    } finally {
+      setDoctorToDelete(null); // Cierra el modal
     }
   };
 
@@ -99,8 +143,8 @@ export default function Doctors() {
       {notification && (
         <div
           className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl animate-fade-in-up ${notification.type === "success"
-              ? "bg-green-500 text-white"
-              : "bg-red-500 text-white"
+            ? "bg-green-500 text-white"
+            : "bg-red-500 text-white"
             }`}
         >
           <p className="font-medium">{notification.message}</p>
@@ -173,16 +217,24 @@ export default function Doctors() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <UserPlus className="text-blue-600" size={24} />
+              {form.id ? <Edit className="text-blue-600" size={24} /> : <UserPlus className="text-blue-600" size={24} />}
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="text-xl font-bold text-gray-800">
-                Nuevo Doctor
+                {form.id ? "Editar Doctor" : "Nuevo Doctor"}
               </h3>
               <p className="text-sm text-gray-500">
-                Registrar nuevo profesional
+                {form.id ? "Modificar datos del profesional" : "Registrar nuevo profesional"}
               </p>
             </div>
+            {form.id && (
+              <button
+                onClick={() => setForm({ name: "", email: "", password: "" })}
+                className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition-colors"
+              >
+                Cancelar Edición
+              </button>
+            )}
           </div>
 
           <form onSubmit={handleCreate} className="space-y-4">
@@ -223,18 +275,18 @@ export default function Doctors() {
               <input
                 className="w-full border border-gray-200 pl-10 pr-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 type="password"
-                placeholder="Contraseña de Acceso"
+                placeholder={form.id ? "Nueva Contraseña (opcional)" : "Contraseña de Acceso"}
                 value={form.password}
                 onChange={(e) =>
                   setForm({ ...form, password: e.target.value })
                 }
-                required
+                required={!form.id}
               />
             </div>
 
             <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-lg font-bold shadow-lg shadow-blue-600/30 transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
-              <UserPlus size={20} />
-              Crear Doctor
+              {form.id ? <Edit size={20} /> : <UserPlus size={20} />}
+              {form.id ? "Guardar Cambios" : "Crear Doctor"}
             </button>
           </form>
         </div>
@@ -273,6 +325,7 @@ export default function Doctors() {
                     <th className="px-6 py-4 font-bold">CORREO</th>
                     <th className="px-6 py-4 font-bold">ESTADO</th>
                     <th className="px-6 py-4 font-bold">REGISTRO</th>
+                    {(user.role === 'admin') && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
                   </tr>
                 </thead>
                 <tbody className="text-sm">
@@ -316,6 +369,24 @@ export default function Doctors() {
                             : "N/A"}
                         </div>
                       </td>
+                      {(user.role === 'admin') && (
+                        <td className="px-6 py-4 flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(doc)}
+                            className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(doc.id)}
+                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -324,6 +395,39 @@ export default function Doctors() {
           )}
         </div>
       </div>
+
+      {/* --- MODAL CONFIRMACIÓN ELIMINAR --- */}
+      {doctorToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 animate-fade-in-up">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="text-red-600" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                ¿Eliminar Doctor?
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Esta acción eliminará permanentemente al doctor y le revocará el acceso al sistema. No se puede deshacer.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDoctorToDelete(null)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-600/30 transition-all"
+                >
+                  Sí, Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

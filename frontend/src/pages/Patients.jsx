@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Search, Bell, Users, FileImage, Calendar } from "lucide-react";
+import { Search, Bell, Users, FileImage, Calendar, Edit, Trash2, AlertTriangle } from "lucide-react";
 import PatientHistoryModal from "../components/PatientHistoryModal";
+import EditPatientModal from "../components/EditPatientModal";
 
 export default function Patients() {
   const [patients, setPatients] = useState([]);
@@ -9,6 +10,10 @@ export default function Patients() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientDni, setSelectedPatientDni] = useState(null);
+
+  // Estados para Edición/Eliminación
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [patientToDelete, setPatientToDelete] = useState(null);
 
   // Obtener datos del usuario
   const userStr = localStorage.getItem("user");
@@ -20,46 +25,9 @@ export default function Patients() {
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-
-      const res = await axios.get("http://localhost/backend/get_studies.php", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Agrupar estudios por paciente (usando patient_dni como clave única)
-      const patientsMap = {};
-
-      res.data.forEach((study) => {
-        const patientDni = study.patient_dni;
-
-        if (patientDni && !patientsMap[patientDni]) {
-          patientsMap[patientDni] = {
-            dni: patientDni,
-            name: study.patient_name || "Paciente",
-            studies_count: 0,
-            last_study_date: null,
-            doctor_name: study.doctor_name || "N/A",
-          };
-        }
-
-        if (patientDni) {
-          patientsMap[patientDni].studies_count += 1;
-          if (
-            !patientsMap[patientDni].last_study_date ||
-            new Date(study.study_date) >
-              new Date(patientsMap[patientDni].last_study_date)
-          ) {
-            patientsMap[patientDni].last_study_date = study.study_date;
-          }
-        }
-      });
-
-      const patientsList = Object.values(patientsMap);
-
-      setPatients(patientsList);
-      setFilteredPatients(patientsList);
+      const res = await axios.get("http://localhost/backend/get_patients.php");
+      setPatients(res.data);
+      setFilteredPatients(res.data);
     } catch (error) {
       console.error("Error cargando pacientes:", error);
     } finally {
@@ -84,6 +52,26 @@ export default function Patients() {
       setFilteredPatients(filtered);
     }
   }, [searchTerm, patients]);
+
+  const handleDelete = (id) => {
+    setPatientToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!patientToDelete) return;
+    try {
+      await axios.post("http://localhost/backend/delete_patient.php", {
+        id: patientToDelete,
+        requester_role: user.role
+      });
+      fetchPatients();
+    } catch (error) {
+      console.error(error);
+      alert("Error al eliminar paciente. Es posible que tenga estudios asociados.");
+    } finally {
+      setPatientToDelete(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -146,7 +134,8 @@ export default function Patients() {
                   <th className="px-6 py-4 font-bold">DNI</th>
                   <th className="px-6 py-4 font-bold">ESTUDIOS</th>
                   <th className="px-6 py-4 font-bold">ÚLTIMO ESTUDIO</th>
-                  <th className="px-6 py-4 font-bold text-center">ACCIÓN</th>
+                  <th className="px-6 py-4 font-bold text-center">HISTORIAL</th>
+                  {user.role === 'admin' && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -190,11 +179,29 @@ export default function Patients() {
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => setSelectedPatientDni(patient.dni)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all transform hover:scale-105 active:scale-95"
+                        className="text-blue-600 hover:underline text-xs font-semibold"
                       >
                         Ver Historial
                       </button>
                     </td>
+                    {user.role === 'admin' && (
+                      <td className="px-6 py-4 flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingPatient(patient)}
+                          className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Editar Paciente"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(patient.id)}
+                          className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Eliminar Paciente"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -220,7 +227,7 @@ export default function Patients() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
           <p className="text-gray-500 text-sm font-medium">Total Estudios</p>
           <h3 className="text-3xl font-bold text-green-600 mt-2">
-            {patients.reduce((sum, p) => sum + p.studies_count, 0)}
+            {patients.reduce((sum, p) => sum + parseInt(p.studies_count || 0), 0)}
           </h3>
         </div>
       </div>
@@ -231,6 +238,48 @@ export default function Patients() {
           dni={selectedPatientDni}
           onClose={() => setSelectedPatientDni(null)}
         />
+      )}
+
+      {/* MODAL DE EDICIÓN */}
+      {editingPatient && (
+        <EditPatientModal
+          patient={editingPatient}
+          onClose={() => setEditingPatient(null)}
+          onSuccess={fetchPatients}
+        />
+      )}
+
+      {/* CONFIRMACIÓN ELIMINAR */}
+      {patientToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 animate-fade-in-up">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="text-red-600" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                ¿Eliminar Paciente?
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Esta acción eliminará al paciente permanentemente. Comprueba si tiene estudios asociados.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPatientToDelete(null)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-600/30 transition-all"
+                >
+                  Sí, Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
