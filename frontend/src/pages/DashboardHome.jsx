@@ -285,9 +285,10 @@ export default function DashboardHome() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-sm border-b border-gray-100">
-                <th className="pb-4 font-medium pl-2">NOMBRE</th>
-                <th className="pb-4 font-medium">DNI</th>
-                <th className="pb-4 font-medium">FECHA ÚLTIMO ESTUDIO</th>
+                <th className="pb-4 font-medium pl-2">PACIENTE</th>
+                <th className="pb-4 font-medium">DOCTOR</th>
+                <th className="pb-4 font-medium">ESTUDIO</th>
+                <th className="pb-4 font-medium">FECHA</th>
                 <th className="pb-4 font-medium">ACCIONES</th>
               </tr>
             </thead>
@@ -298,16 +299,24 @@ export default function DashboardHome() {
                     key={i}
                     className="group hover:bg-gray-50 transition-colors"
                   >
-                    <td className="py-4 pl-2 font-bold text-slate-700">
-                      {p.name}
+                    <td className="py-4 pl-2">
+                      <p className="font-bold text-slate-700">{p.name.toUpperCase()}</p>
+                      <p className="text-xs text-gray-400">{p.dni}</p>
                     </td>
-                    <td className="py-4 text-gray-500">{p.dni}</td>
-                    <td className="py-4 text-gray-500">{p.last_date}</td>
+                    <td className="py-4 text-gray-600">
+                      {p.doctor_name ? `Dr. ${p.doctor_name}` : "N/A"}
+                    </td>
+                    <td className="py-4">
+                      <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold border border-blue-100 uppercase">
+                        {p.study_category || "General"}
+                      </span>
+                    </td>
+                    <td className="py-4 text-gray-500 text-xs">{p.last_date}</td>
                     <td className="py-4">
                       {/* 3. BOTÓN CONECTADO AL ESTADO */}
                       <button
                         onClick={() => setSelectedPatientDni(p.dni)}
-                        className="text-blue-600 font-medium hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-lg transition-colors"
+                        className="text-blue-600 font-medium hover:text-blue-800 bg-blue-50 px-3 py-1 rounded-lg transition-colors text-xs"
                       >
                         Ver Historial
                       </button>
@@ -316,7 +325,7 @@ export default function DashboardHome() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-400">
+                  <td colSpan="5" className="text-center py-8 text-gray-400">
                     No hay actividad reciente.
                   </td>
                 </tr>

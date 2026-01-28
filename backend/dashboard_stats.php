@@ -21,14 +21,14 @@ try {
     // --- FILTROS ---
     $whereDoctor = "";
     $params = [];
-    
+
     if ($role === 'doctor' && $userId) {
         $whereDoctor = " WHERE doctor_id = ? ";
         $params[] = $userId;
     }
 
     // 1. CONTEOS (Lógica confirmada: Totales históricos y mes actual)
-    
+
     // Pacientes
     $sql = "SELECT COUNT(*) FROM patients" . ($role === 'doctor' ? " WHERE doctor_id = ?" : "");
     $stmt = $pdo->prepare($sql);
@@ -52,8 +52,8 @@ try {
     // Estudios del Mes (Estricto mes actual)
     $sql = "SELECT COUNT(*) FROM studies 
             WHERE MONTH(study_date) = MONTH(CURRENT_DATE()) 
-            AND YEAR(study_date) = YEAR(CURRENT_DATE())" . 
-            ($role === 'doctor' ? " AND doctor_id = ?" : "");
+            AND YEAR(study_date) = YEAR(CURRENT_DATE())" .
+        ($role === 'doctor' ? " AND doctor_id = ?" : "");
     $stmt = $pdo->prepare($sql);
     $role === 'doctor' ? $stmt->execute([$userId]) : $stmt->execute();
     $response['counts']['month_studies'] = $stmt->fetchColumn();
@@ -66,49 +66,57 @@ try {
                 COUNT(*) as count 
             FROM studies " . $whereDoctor . " 
             GROUP BY category";
-            
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $types = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     if (empty($types)) {
         // Placeholder si está vacío
-        $response['by_type'] = [['category' => 'Sin datos', 'count' => 1]]; 
+        $response['by_type'] = [['category' => 'Sin datos', 'count' => 1]];
     } else {
         $response['by_type'] = $types;
     }
 
-    // 3. PACIENTES RECIENTES
+    // 3. PACIENTES RECIENTES (Ahora basado en los últimos ESTUDIOS subidos)
+    // Esto nos permite mostrar Doctor y Categoría del estudio específico
     if ($role === 'admin') {
-        $sql = "SELECT p.name, p.dni, MAX(s.study_date) as last_date 
-                FROM patients p 
-                LEFT JOIN studies s ON p.id = s.patient_id 
-                GROUP BY p.id 
-                ORDER BY last_date DESC LIMIT 5";
+        $sql = "SELECT p.name, p.dni, s.study_date as last_date, 
+                       u.name as doctor_name, 
+                       SUBSTRING_INDEX(s.study_name, ' - ', 1) as study_category
+                FROM studies s
+                JOIN patients p ON s.patient_id = p.id
+                LEFT JOIN users u ON s.doctor_id = u.id
+                ORDER BY s.study_date DESC, s.id DESC LIMIT 5";
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
     } else {
-        $sql = "SELECT p.name, p.dni, MAX(s.study_date) as last_date 
-                FROM patients p 
-                LEFT JOIN studies s ON p.id = s.patient_id 
-                WHERE p.doctor_id = ?
-                GROUP BY p.id 
-                ORDER BY last_date DESC LIMIT 5";
+        $sql = "SELECT p.name, p.dni, s.study_date as last_date, 
+                       u.name as doctor_name, 
+                       SUBSTRING_INDEX(s.study_name, ' - ', 1) as study_category
+                FROM studies s
+                JOIN patients p ON s.patient_id = p.id
+                LEFT JOIN users u ON s.doctor_id = u.id
+                WHERE s.doctor_id = ?
+                ORDER BY s.study_date DESC, s.id DESC LIMIT 5";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$userId]);
     }
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($patients as &$p) {
-        if (!$p['last_date']) $p['last_date'] = 'Sin estudios';
-    }
     $response['recent_patients'] = $patients;
 
     // 4. ACTIVIDAD SEMANAL (NUEVA LÓGICA REAL)
     // Inicializamos la semana en 0
     $weekData = [
-        'Lun' => 0, 'Mar' => 0, 'Mie' => 0, 'Jue' => 0, 'Vie' => 0, 'Sab' => 0, 'Dom' => 0
+        'Lun' => 0,
+        'Mar' => 0,
+        'Mie' => 0,
+        'Jue' => 0,
+        'Vie' => 0,
+        'Sab' => 0,
+        'Dom' => 0
     ];
-    
+
     // Mapeo de índice MySQL (0=Lunes... 6=Domingo) a nuestras claves
     $dayMap = [0 => 'Lun', 1 => 'Mar', 2 => 'Mie', 3 => 'Jue', 4 => 'Vie', 5 => 'Sab', 6 => 'Dom'];
 
@@ -117,9 +125,9 @@ try {
     // YEARWEEK(..., 1) asegura que la semana empiece en Lunes
     $sql = "SELECT WEEKDAY(study_date) as day_index, COUNT(*) as total 
             FROM studies 
-            WHERE YEARWEEK(study_date, 1) = YEARWEEK(CURDATE(), 1) " . 
-            ($role === 'doctor' ? " AND doctor_id = ?" : "") . 
-            " GROUP BY day_index";
+            WHERE YEARWEEK(study_date, 1) = YEARWEEK(CURDATE(), 1) " .
+        ($role === 'doctor' ? " AND doctor_id = ?" : "") .
+        " GROUP BY day_index";
 
     $stmt = $pdo->prepare($sql);
     $role === 'doctor' ? $stmt->execute([$userId]) : $stmt->execute();
@@ -128,7 +136,7 @@ try {
     // Rellenamos los datos reales
     foreach ($results as $row) {
         $dayName = $dayMap[$row['day_index']];
-        $weekData[$dayName] = (int)$row['total'];
+        $weekData[$dayName] = (int) $row['total'];
     }
 
     // Convertimos al formato que quiere Recharts [{name: 'Lun', estudios: 0}, ...]

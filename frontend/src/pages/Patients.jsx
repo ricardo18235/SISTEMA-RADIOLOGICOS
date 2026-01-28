@@ -47,7 +47,8 @@ export default function Patients() {
       const filtered = patients.filter(
         (patient) =>
           patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          patient.dni.toLowerCase().includes(searchTerm.toLowerCase())
+          patient.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (patient.doctor_name && patient.doctor_name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredPatients(filtered);
     }
@@ -151,7 +152,7 @@ export default function Patients() {
                         </div>
                         <div>
                           <p className="font-bold text-gray-800">
-                            {patient.name}
+                            {patient.name.toUpperCase()}
                           </p>
                           {patient.doctor_name && (
                             <p className="text-xs text-gray-500">

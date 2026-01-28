@@ -323,8 +323,7 @@ export default function Doctors() {
                   <tr className="bg-gray-50 text-left text-gray-600 text-sm border-b border-gray-100">
                     <th className="px-6 py-4 font-bold">DOCTOR</th>
                     <th className="px-6 py-4 font-bold">CORREO</th>
-                    <th className="px-6 py-4 font-bold">ESTADO</th>
-                    <th className="px-6 py-4 font-bold">REGISTRO</th>
+                    <th className="px-6 py-4 font-bold text-center">PACIENTES</th>
                     {(user.role === 'admin') && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
                   </tr>
                 </thead>
@@ -341,10 +340,7 @@ export default function Doctors() {
                           </div>
                           <div>
                             <p className="font-bold text-gray-800">
-                              Dr. {doc.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              ID: {doc.id}
+                              Dr. {doc.name.toUpperCase()}
                             </p>
                           </div>
                         </div>
@@ -355,19 +351,10 @@ export default function Doctors() {
                           {doc.email || "Sin correo"}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
-                          <CheckCircle size={12} />
-                          Activo
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full text-sm font-bold border border-blue-100">
+                          {doc.patient_count || 0}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <Calendar size={12} />
-                          {doc.created_at
-                            ? new Date(doc.created_at).toLocaleDateString()
-                            : "N/A"}
-                        </div>
                       </td>
                       {(user.role === 'admin') && (
                         <td className="px-6 py-4 flex justify-end gap-2">
