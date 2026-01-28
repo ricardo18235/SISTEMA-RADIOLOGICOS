@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Search, Bell, Users, FileImage, Calendar, Edit, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Users, FileImage, Calendar, Edit, Trash2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import PatientHistoryModal from "../components/PatientHistoryModal";
 import EditPatientModal from "../components/EditPatientModal";
+import NotificationBell from "../components/NotificationBell";
 
 export default function Patients() {
   const [patients, setPatients] = useState([]);
@@ -28,10 +30,10 @@ export default function Patients() {
     : { name: "Usuario", id: null, role: "guest" };
   const userName = user.name || "Doctor";
 
-  const fetchPatients = async (currentPage, search) => {
+  const fetchPatients = async (currentPage, search, silent = false) => {
     try {
-      setLoading(true);
-      const res = await axios.get(`http://localhost/backend/get_patients.php?page=${currentPage}&limit=${limit}&search=${search}`);
+      if (!silent) setLoading(true);
+      const res = await axios.get(`http://localhost/backend/get_patients.php?page=${currentPage}&limit=${limit}&search=${search}&user_id=${user.id}&role=${user.role}`);
       setPatients(res.data.data);
       if (res.data.stats) {
         setStats(res.data.stats);
@@ -47,6 +49,8 @@ export default function Patients() {
     }
   };
 
+  const location = useLocation();
+
   // Debounce para búsqueda
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -56,6 +60,23 @@ export default function Patients() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
+
+  // Auto-refresco silencioso cada 10 segundos para mantener estados actualizados
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPatients(page, searchTerm, true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [page, searchTerm]);
+
+  // Listener para abrir paciente desde notificación
+  useEffect(() => {
+    if (location.state && location.state.openDni) {
+      setSelectedPatientDni(location.state.openDni);
+      // Limpiamos el estado para que no se re-abra si se recarga manualmente
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Cambio de página
   const handlePageChange = (newPage) => {
@@ -105,10 +126,7 @@ export default function Patients() {
               className="bg-transparent outline-none text-sm w-64"
             />
           </div>
-          <button className="text-gray-400 hover:text-blue-600 relative p-1">
-            <Bell size={20} />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          <NotificationBell />
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>
@@ -163,6 +181,7 @@ export default function Patients() {
                   <th className="px-6 py-4 font-bold">DNI</th>
                   <th className="px-6 py-4 font-bold">ESTUDIOS</th>
                   <th className="px-6 py-4 font-bold">ÚLTIMO ESTUDIO</th>
+                  {user.role === 'admin' && <th className="px-6 py-4 font-bold text-center">ESTADO</th>}
                   <th className="px-6 py-4 font-bold text-center">HISTORIAL</th>
                   {user.role === 'admin' && <th className="px-6 py-4 font-bold text-right">ACCIONES</th>}
                 </tr>
@@ -171,7 +190,10 @@ export default function Patients() {
                 {patients.map((patient, index) => (
                   <tr
                     key={index}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    className={`border-b border-gray-100 hover:bg-gray-50 transition-all ${user.role === 'doctor' && patient.unviewed_studies > 0
+                      ? 'bg-blue-50/50 border-l-4 border-l-blue-500 animate-pulse-subtle'
+                      : 'bg-white'
+                      }`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -205,6 +227,23 @@ export default function Patients() {
                         {patient.last_study_date || "N/A"}
                       </span>
                     </td>
+                    {user.role === 'admin' && (
+                      <td className="px-6 py-4 text-center">
+                        {patient.unviewed_studies > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-300">
+                            <EyeOff size={12} />
+                            No Leído
+                          </span>
+                        ) : patient.studies_count > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-300">
+                            <Eye size={12} />
+                            Leído
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Sin estudios</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => setSelectedPatientDni(patient.dni)}
@@ -266,6 +305,7 @@ export default function Patients() {
         <PatientHistoryModal
           dni={selectedPatientDni}
           onClose={() => setSelectedPatientDni(null)}
+          onStudyViewed={() => fetchPatients(page, searchTerm, true)}
         />
       )}
       {editingPatient && (

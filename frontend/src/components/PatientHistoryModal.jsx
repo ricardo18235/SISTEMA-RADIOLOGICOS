@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-export default function PatientHistoryModal({ dni, onClose }) {
+export default function PatientHistoryModal({ dni, onClose, onStudyViewed }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [patientName, setPatientName] = useState("");
@@ -22,9 +22,11 @@ export default function PatientHistoryModal({ dni, onClose }) {
 
   // --- LÓGICA DE SEGURIDAD (Backend) ---
 
-  const handlePreview = async (fileUrl, fileType) => {
+  const handlePreview = async (fileUrl, fileType, studyId) => {
     setLoadingFile(true);
     try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
       const response = await axios.post(
         "http://localhost/backend/get_signed_url.php",
         {
@@ -34,6 +36,21 @@ export default function PatientHistoryModal({ dni, onClose }) {
       );
       if (response.data?.url) {
         setViewingFile({ url: response.data.url, type: fileType });
+
+        // Si es un doctor, marcar el estudio como visto
+        if (user.role === 'doctor' && studyId) {
+          try {
+            await axios.post("http://localhost/backend/mark_study_viewed.php", {
+              study_id: studyId,
+              user_id: user.id,
+              user_role: user.role
+            });
+            // Notificar al padre que se ha visto un estudio para actualizar UI instantáneamente
+            if (onStudyViewed) onStudyViewed();
+          } catch (error) {
+            console.error("Error marcando estudio como visto:", error);
+          }
+        }
       }
     } catch (error) {
       console.error(error);
@@ -198,7 +215,7 @@ export default function PatientHistoryModal({ dni, onClose }) {
                       {/* Botón Ver Estudio (Azul Sólido) */}
                       <button
                         onClick={() =>
-                          handlePreview(study.file_url, study.file_type)
+                          handlePreview(study.file_url, study.file_type, study.id)
                         }
                         className="cursor-pointer flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 text-sm"
                       >

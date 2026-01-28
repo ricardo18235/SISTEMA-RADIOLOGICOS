@@ -14,56 +14,58 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    // Obtener doctor_id del query parameter
-    $doctorId = $_GET['doctor_id'] ?? null;
+    // Soportar tanto doctor_id (legacy) como user_id (nuevo sistema)
+    $userId = $_GET['user_id'] ?? $_GET['doctor_id'] ?? null;
     $limit = $_GET['limit'] ?? 20;
     $offset = $_GET['offset'] ?? 0;
 
-    if (!$doctorId) {
+    if (!$userId) {
         http_response_code(400);
-        echo json_encode(['error' => 'doctor_id requerido']);
+        echo json_encode(['error' => 'user_id o doctor_id requerido']);
         exit;
     }
 
-    // Validar que doctor_id es un número
-    if (!is_numeric($doctorId)) {
+    // Validar que es un número
+    if (!is_numeric($userId)) {
         http_response_code(400);
-        echo json_encode(['error' => 'doctor_id inválido']);
+        echo json_encode(['error' => 'ID inválido']);
         exit;
     }
 
-    // Obtener notificaciones del doctor (ordenadas por más recientes primero)
+    // Obtener notificaciones (ordenadas por más recientes primero)
+    $limitInt = intval($limit);
+    $offsetInt = intval($offset);
+
     $stmt = $pdo->prepare("
         SELECT 
             n.id,
-            n.doctor_id,
-            n.patient_id,
-            n.study_id,
+            n.user_id,
+            n.type,
             n.message,
+            n.study_id,
             n.is_read,
             n.created_at,
-            n.read_at,
-            p.name as patient_name,
-            p.dni as patient_dni,
             s.study_name,
             s.study_date,
-            s.file_url
+            s.viewed_by_doctor,
+            p.name as patient_name,
+            p.dni as patient_dni
         FROM notifications n
-        JOIN patients p ON n.patient_id = p.id
-        JOIN studies s ON n.study_id = s.id
-        WHERE n.doctor_id = ?
+        LEFT JOIN studies s ON n.study_id = s.id
+        LEFT JOIN patients p ON s.patient_id = p.id
+        WHERE n.user_id = ?
         ORDER BY n.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT $limitInt OFFSET $offsetInt
     ");
-    
-    $stmt->execute([$doctorId, intval($limit), intval($offset)]);
+
+    $stmt->execute([$userId]);
     $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Obtener total de notificaciones no leídas
     $stmt = $pdo->prepare(
-        "SELECT COUNT(*) as unread_count FROM notifications WHERE doctor_id = ? AND is_read = FALSE"
+        "SELECT COUNT(*) as unread_count FROM notifications WHERE user_id = ? AND is_read = 0"
     );
-    $stmt->execute([$doctorId]);
+    $stmt->execute([$userId]);
     $unreadCount = $stmt->fetch(PDO::FETCH_ASSOC)['unread_count'];
 
     echo json_encode([

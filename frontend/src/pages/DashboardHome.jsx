@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import UploadForm from "../components/UploadForm";
 import PatientHistoryModal from "../components/PatientHistoryModal";
+import NotificationBell from "../components/NotificationBell";
 
 export default function DashboardHome() {
   const [stats, setStats] = useState(null);
@@ -51,6 +52,9 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchStats();
+    // Refresco automático cada 10 segundos para ver nuevos pacientes en tiempo real
+    const interval = setInterval(fetchStats, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -81,6 +85,7 @@ export default function DashboardHome() {
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-full shadow-sm px-4">
+          <NotificationBell />
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>
@@ -340,6 +345,7 @@ export default function DashboardHome() {
         <PatientHistoryModal
           dni={selectedPatientDni}
           onClose={() => setSelectedPatientDni(null)}
+          onStudyViewed={fetchStats}
         />
       )}
     </div>

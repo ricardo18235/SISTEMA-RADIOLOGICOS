@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   Search,
-  Bell,
   UserPlus,
   Mail,
   Lock,
@@ -16,6 +15,7 @@ import {
   Trash2,
   AlertTriangle,
 } from "lucide-react";
+import NotificationBell from "../components/NotificationBell";
 
 
 
@@ -167,10 +167,7 @@ export default function Doctors() {
               className="bg-transparent outline-none text-sm w-64"
             />
           </div>
-          <button className="text-gray-400 hover:text-blue-600 relative p-1">
-            <Bell size={20} />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          <NotificationBell />
           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold uppercase shadow-lg shadow-blue-600/20">
             {userName.charAt(0)}
           </div>

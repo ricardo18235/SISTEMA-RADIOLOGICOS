@@ -99,12 +99,12 @@ try {
     $doctor = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // 6. Crear notificación para el doctor en la BD
-    $notificationMessage = "Se ha cargado un nuevo estudio: $studyName para el paciente $patientName (DNI: $patientDni)";
+    $notificationMessage = "Nuevo estudio disponible: $studyName para el paciente $patientName (DNI: $patientDni)";
     $stmt = $pdo->prepare(
-        "INSERT INTO notifications (doctor_id, patient_id, study_id, message, is_read, created_at) 
-         VALUES (?, ?, ?, ?, FALSE, NOW())"
+        "INSERT INTO notifications (user_id, type, message, study_id, is_read, created_at) 
+         VALUES (?, 'new_study', ?, ?, 0, NOW())"
     );
-    $result = $stmt->execute([$doctorId, $patientId, $studyId, $notificationMessage]);
+    $result = $stmt->execute([$doctorId, $notificationMessage, $studyId]);
 
     if (!$result) {
         error_log("Error creando notificación: " . json_encode($stmt->errorInfo()));

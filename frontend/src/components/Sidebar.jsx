@@ -58,14 +58,16 @@ export default function Sidebar({ onLogout }) {
           <Users size={20} /> Pacientes
         </NavLink>
 
-        <NavLink
-          to="/dashboard/doctors"
-          className={({ isActive }) =>
-            `${baseClass} ${isActive ? activeClass : inactiveClass}`
-          }
-        >
-          <Stethoscope size={20} /> Doctores
-        </NavLink>
+        {user.role === 'admin' && (
+          <NavLink
+            to="/dashboard/doctors"
+            className={({ isActive }) =>
+              `${baseClass} ${isActive ? activeClass : inactiveClass}`
+            }
+          >
+            <Stethoscope size={20} /> Doctores
+          </NavLink>
+        )}
 
         {/* Separador visual */}
         <div className="my-6"></div>
